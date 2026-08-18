@@ -98,6 +98,18 @@ the local URL it served (`http://127.0.0.1:<port>/?token=…`), prints your
 detected hardware, and lists any models already installed. Press Ctrl+C to
 stop.
 
+If another local program is already using the normal local port, SafeAI
+Model Finder automatically picks another free loopback port and prints
+a clear line such as:
+
+```
+Port 8787 is already in use; using local port 34419 instead.
+```
+
+You don't need to do anything — the tool just opens the browser at the
+new URL. All traffic remains on `127.0.0.1`; nothing is exposed to the
+network.
+
 ## Privacy
 
 - The local HTTP server binds only to `127.0.0.1`. It is reachable from

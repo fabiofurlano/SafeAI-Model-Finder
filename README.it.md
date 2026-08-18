@@ -102,6 +102,17 @@ apre il tuo browser predefinito all'URL locale che serve
 (`http://127.0.0.1:<porta>/?token=…`), stampa l'hardware rilevato ed
 elenca gli eventuali modelli già installati. Premi Ctrl+C per fermarlo.
 
+Se un altro programma locale sta già usando la porta locale predefinita,
+SafeAI Model Finder ne sceglie automaticamente un'altra libera su
+loopback e stampa un messaggio chiaro, ad esempio:
+
+```
+Port 8787 is already in use; using local port 34419 instead.
+```
+
+Non devi fare nulla: lo strumento apre il browser al nuovo URL. Tutto
+il traffico resta su `127.0.0.1`; nulla è esposto alla rete.
+
 ## Privacy
 
 - Il server HTTP locale si collega solo a `127.0.0.1`. È raggiungibile
