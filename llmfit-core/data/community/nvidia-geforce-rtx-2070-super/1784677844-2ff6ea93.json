@@ -1,0 +1,33 @@
+{
+  "hardware": {
+    "cpu": "AMD Ryzen Threadripper PRO 5945WX 12-Cores",
+    "cpuCores": 24,
+    "gpuCount": 2,
+    "hardwareName": "NVIDIA GeForce RTX 2070 SUPER",
+    "hwClass": "DISCRETE_GPU",
+    "memTierGb": 16,
+    "os": "windows",
+    "ramGb": 127.89,
+    "unifiedMemory": false,
+    "vramGb": 16.0
+  },
+  "results": [
+    {
+      "avgOutputTokens": 79.67,
+      "avgTotalMs": 1114.99,
+      "avgTps": 69.87,
+      "avgTtftMs": null,
+      "maxTps": 79.05,
+      "minTps": 59.91,
+      "model": "qwen2.5-coder-7b-instruct-q4_k_m.gguf",
+      "numRuns": 3,
+      "provider": "llamacpp"
+    }
+  ],
+  "schemaVersion": 1,
+  "submittedAtUnix": 1784679220,
+  "tool": {
+    "name": "llmfit",
+    "version": "1.1.6"
+  }
+}

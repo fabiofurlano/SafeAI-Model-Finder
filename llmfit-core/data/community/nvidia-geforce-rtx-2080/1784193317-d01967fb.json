@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "submittedAtUnix": 1784193317,
+  "tool": {
+    "name": "llmfit",
+    "version": "1.0.0"
+  },
+  "hardware": {
+    "hwClass": "DISCRETE_GPU",
+    "hardwareName": "NVIDIA GeForce RTX 2080",
+    "memTierGb": 8,
+    "vramGb": 8.0,
+    "gpuCount": 1,
+    "unifiedMemory": false,
+    "cpu": "Intel(R) Core(TM) i9-10900X CPU @ 3.70GHz",
+    "cpuCores": 20,
+    "ramGb": 62.49,
+    "os": "linux"
+  },
+  "results": [
+    {
+      "model": "Qwen3-30B-A3B-Instruct-2507-Q4_K_M.gguf",
+      "provider": "llamacpp",
+      "numRuns": 3,
+      "avgTps": 33.72,
+      "minTps": 32.86,
+      "maxTps": 34.81,
+      "avgTtftMs": null,
+      "avgTotalMs": 4432.16,
+      "avgOutputTokens": 150.67
+    }
+  ]
+}

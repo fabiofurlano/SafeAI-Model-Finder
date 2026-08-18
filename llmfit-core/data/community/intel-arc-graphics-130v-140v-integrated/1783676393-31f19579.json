@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "submittedAtUnix": 1783676393,
+  "tool": {
+    "name": "llmfit",
+    "version": "1.0.1"
+  },
+  "hardware": {
+    "hwClass": "UNIFIED",
+    "hardwareName": "Intel Arc Graphics 130V/140V (integrated)",
+    "memTierGb": 32,
+    "vramGb": 30.82,
+    "gpuCount": 1,
+    "unifiedMemory": true,
+    "cpu": "Intel(R) Core(TM) Ultra 7 258V",
+    "cpuCores": 8,
+    "ramGb": 30.82,
+    "os": "linux"
+  },
+  "results": [
+    {
+      "model": "/home/axjns/.cache/llmfit/models/gemma-3.Q8_0.gguf",
+      "provider": "llamacpp",
+      "numRuns": 3,
+      "avgTps": 3.8,
+      "minTps": 3.68,
+      "maxTps": 3.97,
+      "avgTtftMs": null,
+      "avgTotalMs": 48968.34,
+      "avgOutputTokens": 182.67
+    }
+  ]
+}

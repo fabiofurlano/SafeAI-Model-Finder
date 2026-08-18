@@ -1,0 +1,132 @@
+{
+  "schemaVersion": 1,
+  "submittedAtUnix": 1784627097,
+  "tool": {
+    "name": "llmfit",
+    "version": "1.1.3"
+  },
+  "hardware": {
+    "hwClass": "DISCRETE_GPU",
+    "hardwareName": "NVIDIA GeForce RTX 2080",
+    "memTierGb": 8,
+    "vramGb": 8.0,
+    "gpuCount": 1,
+    "unifiedMemory": false,
+    "cpu": "Intel(R) Core(TM) i9-10900X CPU @ 3.70GHz",
+    "cpuCores": 20,
+    "ramGb": 62.49,
+    "os": "linux"
+  },
+  "results": [
+    {
+      "model": "Llama-3.2-1B-Instruct-Q4_K_M.gguf",
+      "provider": "llamacpp",
+      "numRuns": 3,
+      "avgTps": 304.27,
+      "minTps": 301.45,
+      "maxTps": 308.93,
+      "avgTtftMs": null,
+      "avgTotalMs": 594.16,
+      "avgOutputTokens": 181.33
+    },
+    {
+      "model": "gemma-2-2b-it-Q4_K_M.gguf",
+      "provider": "llamacpp",
+      "numRuns": 3,
+      "avgTps": 140.27,
+      "minTps": 136.93,
+      "maxTps": 142.58,
+      "avgTtftMs": null,
+      "avgTotalMs": 1481.44,
+      "avgOutputTokens": 209.67
+    },
+    {
+      "model": "Qwen2.5-Coder-3B-Instruct-Q4_K_M.gguf",
+      "provider": "llamacpp",
+      "numRuns": 3,
+      "avgTps": 136.51,
+      "minTps": 131.37,
+      "maxTps": 139.23,
+      "avgTtftMs": null,
+      "avgTotalMs": 1403.91,
+      "avgOutputTokens": 194.67
+    },
+    {
+      "model": "Phi-3.5-mini-instruct-Q4_K_M.gguf",
+      "provider": "llamacpp",
+      "numRuns": 3,
+      "avgTps": 121.46,
+      "minTps": 120.27,
+      "maxTps": 123.5,
+      "avgTtftMs": null,
+      "avgTotalMs": 2470.23,
+      "avgOutputTokens": 300.0
+    },
+    {
+      "model": "granite-3.1-8b-instruct-Q4_K_M.gguf",
+      "provider": "llamacpp",
+      "numRuns": 3,
+      "avgTps": 65.63,
+      "minTps": 65.43,
+      "maxTps": 65.96,
+      "avgTtftMs": null,
+      "avgTotalMs": 3273.39,
+      "avgOutputTokens": 215.0
+    },
+    {
+      "model": "DeepSeek-R1-Distill-Llama-8B-Q4_K_M.gguf",
+      "provider": "llamacpp",
+      "numRuns": 3,
+      "avgTps": 71.74,
+      "minTps": 71.49,
+      "maxTps": 72.13,
+      "avgTtftMs": null,
+      "avgTotalMs": 4181.99,
+      "avgOutputTokens": 300.0
+    },
+    {
+      "model": "Falcon3-7B-Instruct-Q4_K_M.gguf",
+      "provider": "llamacpp",
+      "numRuns": 3,
+      "avgTps": 75.78,
+      "minTps": 75.01,
+      "maxTps": 76.24,
+      "avgTtftMs": null,
+      "avgTotalMs": 2393.46,
+      "avgOutputTokens": 182.0
+    },
+    {
+      "model": "DeepSeek-R1-Distill-Qwen-14B-Q4_K_M.gguf",
+      "provider": "llamacpp",
+      "numRuns": 3,
+      "avgTps": 17.87,
+      "minTps": 16.72,
+      "maxTps": 18.97,
+      "avgTtftMs": null,
+      "avgTotalMs": 16834.32,
+      "avgOutputTokens": 300.0
+    },
+    {
+      "model": "Codestral-22B-v0.1-Q4_K_M.gguf",
+      "provider": "llamacpp",
+      "numRuns": 3,
+      "avgTps": 5.05,
+      "minTps": 4.35,
+      "maxTps": 5.49,
+      "avgTtftMs": null,
+      "avgTotalMs": 26714.97,
+      "avgOutputTokens": 140.33
+    },
+    {
+      "model": "gemma-2-27b-it-Q4_K_M.gguf",
+      "provider": "llamacpp",
+      "numRuns": 3,
+      "avgTps": 3.89,
+      "minTps": 3.87,
+      "maxTps": 3.92,
+      "avgTtftMs": null,
+      "avgTotalMs": 44158.88,
+      "avgOutputTokens": 172.0
+    }
+  ]
+}

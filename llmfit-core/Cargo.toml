@@ -1,0 +1,36 @@
+[package]
+name = "llmfit-core"
+version.workspace = true
+edition = "2024"
+authors = ["Alex Jones <alex@example.com>"]
+description = "Core library for llmfit — hardware detection, model fitting, and provider integration"
+license = "MIT"
+repository = "https://github.com/AlexsJones/llmfit"
+homepage = "https://github.com/AlexsJones/llmfit"
+readme = "../README.md"
+keywords = ["llm", "hardware", "inference", "models", "gpu"]
+categories = ["hardware-support"]
+
+[dependencies]
+base64 = "0.22"
+dirs = "6.0"
+http = "1"
+regex = "1"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+serde_yml = "0.0"
+sysinfo = "0.39"
+ureq = { version = "3.2", features = ["json"] }
+which = "8.0.2"
+
+# Apple Silicon reports the total unified-memory pool, but macOS caps how much
+# the GPU may wire. Metal exposes the effective cap via
+# `recommendedMaxWorkingSetSize`, so query it directly on macOS.
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2-metal = { version = "0.3", features = ["MTLDevice"] }
+
+[build-dependencies]
+serde_json = "1.0"
+
+[dev-dependencies]
+jsonschema = { version = "0.46", default-features = false }

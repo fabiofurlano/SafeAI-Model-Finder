@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SafeAI Model Finder</title>
+    <script>
+        // Set the appearance before first paint to avoid a theme flash.
+        try {
+            var smfTheme = localStorage.getItem('smf-theme');
+            if (!smfTheme) smfTheme = window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+            document.documentElement.dataset.theme = smfTheme;
+        } catch (e) { document.documentElement.dataset.theme = 'dark'; }
+    </script>
+    <link rel="stylesheet" href="/assets/styles.css">
+</head>
+<body>
+    <div class="app-shell">
+
+        <!-- ── Sidebar ─────────────────────────────────────── -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-brand">
+                <span class="brand-mark" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="4" y="4" width="16" height="16" rx="5"></rect>
+                        <path d="M12 8v8M8 12h8"></path>
+                    </svg>
+                </span>
+                <span class="brand-name"><span data-i18n="brand.name">SafeAI</span> <em data-i18n="brand.finder">Model Finder</em></span>
+            </div>
+
+            <nav class="sidebar-nav" aria-label="Main navigation" data-i18n-aria="nav.mainAria">
+                <button class="nav-item" data-view="overview" type="button" aria-current="page">
+                    <span class="nav-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12l9-9 9 9"></path><path d="M5 10v10h5v-6h4v6h5V10"></path></svg>
+                    </span>
+                    <span class="nav-label" data-i18n="nav.overview">Overview</span>
+                </button>
+                <button class="nav-item" data-view="find" type="button">
+                    <span class="nav-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"></circle><path d="M21 21l-4.3-4.3"></path></svg>
+                    </span>
+                    <span class="nav-label" data-i18n="nav.find">Find a model</span>
+                </button>
+                <button class="nav-item" data-view="browse" type="button">
+                    <span class="nav-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h10"></path></svg>
+                    </span>
+                    <span class="nav-label" data-i18n="nav.browse">Browse models</span>
+                </button>
+                <button class="nav-item" data-view="installed" type="button">
+                    <span class="nav-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5M4 21h16"></path></svg>
+                    </span>
+                    <span class="nav-label" data-i18n="nav.installed">Installed</span>
+                    <span class="nav-count" id="installedCount" hidden></span>
+                </button>
+                <button class="nav-item" data-view="performance" type="button">
+                    <span class="nav-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 14l4-4"></path><path d="M3.3 16a9 9 0 1 1 17.4 0"></path></svg>
+                    </span>
+                    <span class="nav-label" data-i18n="nav.performance">Performance</span>
+                </button>
+                <button class="nav-item" data-view="planner" type="button">
+                    <span class="nav-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="2"></rect><path d="M8 8h8M8 12h8M8 16h5"></path></svg>
+                    </span>
+                    <span class="nav-label" data-i18n="nav.planner">Hardware Planner</span>
+                </button>
+                <button class="nav-item" data-view="guide" type="button">
+                    <span class="nav-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
+                    </span>
+                    <span class="nav-label" data-i18n="nav.guide">Learn</span>
+                </button>
+            </nav>
+
+            <div class="sidebar-foot">
+                <div class="side-status" id="sideOllama">
+                    <span class="side-dot" aria-hidden="true"></span>
+                    <span class="side-status-text" data-i18n="nav.ollamaChecking">Checking Ollama…</span>
+                </div>
+                <div class="side-actions">
+                    <div class="side-actions-row">
+                        <div class="segment segment-lang" role="group" aria-label="Choose language" data-i18n-aria="nav.langAria">
+                            <button class="seg-btn seg-lang-btn" data-lang="en" type="button" aria-pressed="true">EN</button>
+                            <button class="seg-btn seg-lang-btn" data-lang="it" type="button" aria-pressed="false">IT</button>
+                        </div>
+                        <button id="themeToggle" class="icon-btn" type="button" aria-label="Switch between light and dark appearance" data-i18n-aria="nav.themeAria">
+                            <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+                                <circle cx="12" cy="12" r="4"></circle>
+                                <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path>
+                            </svg>
+                            <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"></path>
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="side-actions-mode" role="group" aria-label="Switch between Easy and Advanced mode" data-i18n-aria="nav.modeAria">
+                        <span class="seg-label" data-i18n="mode.easy">Easy</span>
+                        <label class="switch">
+                            <input type="checkbox" id="modeToggle" aria-label="Switch between Easy and Advanced mode" data-i18n-aria="nav.modeAria">
+                            <span class="switch-track" aria-hidden="true"><span class="switch-thumb"></span></span>
+                        </label>
+                        <span class="seg-label" data-i18n="mode.advanced">Advanced</span>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- ── Main content ─────────────────────────────────── -->
+        <main class="content" id="content">
+
+            <!-- Overview -->
+            <section class="view" id="view-overview" aria-labelledby="ovTitle">
+                <div class="hero">
+                    <h1 id="ovTitle"><span data-i18n="overview.title1">Find the right model</span><br><span data-i18n="overview.title2">for this computer</span></h1>
+                    <p class="hero-sub" data-i18n="overview.subtitle">We looked at your hardware and will recommend the best local models for what you want to do. Nothing leaves this computer.</p>
+
+                    <div class="machine-strip" id="machineStrip" aria-label="This computer" data-i18n-aria="overview.machineAria">
+                        <div class="strip-chip" data-chip="cpu">
+                            <span class="strip-icon" aria-hidden="true">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="6" width="12" height="12" rx="2"></rect><rect x="10" y="10" width="4" height="4"></rect><path d="M9 2v2M15 2v2M9 20v2M15 20v2M2 9h2M2 15h2M20 9h2M20 15h2"></path></svg>
+                            </span>
+                            <span class="strip-body">
+                                <span class="strip-label" data-i18n="overview.processor">Processor</span>
+                                <span class="strip-value" data-field="cpu" data-i18n="overview.detecting">Detecting…</span>
+                                <span class="strip-hint" data-field="cpu-hint"></span>
+                            </span>
+                        </div>
+                        <div class="strip-chip" data-chip="ram">
+                            <span class="strip-icon" aria-hidden="true">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="12" rx="2"></rect><path d="M8 8h8M8 12h8M9 16v4M15 16v4"></path></svg>
+                            </span>
+                            <span class="strip-body">
+                                <span class="strip-label" data-i18n="overview.memory">Memory</span>
+                                <span class="strip-value" data-field="ram" data-i18n="overview.detecting">Detecting…</span>
+                                <span class="strip-hint" data-field="ram-hint"></span>
+                            </span>
+                        </div>
+                        <div class="strip-chip" data-chip="gpu">
+                            <span class="strip-icon" aria-hidden="true">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="13" rx="2"></rect><path d="M7 20h10M12 17v3"></path></svg>
+                            </span>
+                            <span class="strip-body">
+                                <span class="strip-label" data-i18n="overview.graphics">Graphics</span>
+                                <span class="strip-value" data-field="gpu" data-i18n="overview.detecting">Detecting…</span>
+                                <span class="strip-hint" data-field="gpu-hint"></span>
+                            </span>
+                        </div>
+                        <div class="strip-chip" data-chip="ollama">
+                            <span class="strip-icon" aria-hidden="true">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M8.5 12l2.5 2.5 4.5-4.5"></path></svg>
+                            </span>
+                            <span class="strip-body">
+                                <span class="strip-label" data-i18n="overview.ollama">Ollama</span>
+                                <span class="strip-value" data-field="ollama" data-i18n="overview.checking">Checking…</span>
+                                <span class="strip-hint" data-field="ollama-hint"></span>
+                            </span>
+                        </div>
+                    </div>
+
+                    <p class="raw-specs" id="rawSpecs" hidden aria-live="polite"></p>
+
+                    <div class="hero-actions">
+                        <button class="btn btn-primary btn-lg" id="ctaFind" type="button" data-i18n="overview.ctaFind">Find a model for me</button>
+                        <button class="btn btn-secondary btn-lg" id="ctaBrowse" type="button" data-i18n="overview.ctaBrowse">Browse all models</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Find a model -->
+            <section class="view" id="view-find" hidden aria-labelledby="findTitle">
+                <div class="view-head">
+                    <h2 id="findTitle" data-i18n="find.title">What will you use it for?</h2>
+                    <p class="view-sub" data-i18n="find.subtitle">Pick one — we'll match a model that fits this computer.</p>
+                </div>
+
+                <div class="use-case-grid" id="useCaseGrid">
+                    <button class="use-case-btn" data-use-case="everyday" type="button">
+                        <span class="uc-icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5c-1.2 0-2.4-.25-3.4-.7L3 21l1.7-6.1A8.5 8.5 0 1 1 21 11.5z"></path></svg>
+                        </span>
+                        <span class="uc-title" data-i18n="find.everyday">Everyday assistant</span>
+                        <span class="uc-desc" data-i18n="find.everydayDesc">Questions, chat and general help</span>
+                    </button>
+                    <button class="use-case-btn" data-use-case="writing" type="button">
+                        <span class="uc-icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"></path></svg>
+                        </span>
+                        <span class="uc-title" data-i18n="find.writing">Writing &amp; documents</span>
+                        <span class="uc-desc" data-i18n="find.writingDesc">Emails, reports and summaries</span>
+                    </button>
+                    <button class="use-case-btn" data-use-case="coding" type="button">
+                        <span class="uc-icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6l-6 6 6 6M16 6l6 6-6 6"></path></svg>
+                        </span>
+                        <span class="uc-title" data-i18n="find.coding">Coding</span>
+                        <span class="uc-desc" data-i18n="find.codingDesc">Code help and explanations</span>
+                    </button>
+                    <button class="use-case-btn" data-use-case="vision" type="button">
+                        <span class="uc-icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"></rect><circle cx="9" cy="10" r="1.6"></circle><path d="M21 15l-5-5-9 9"></path></svg>
+                        </span>
+                        <span class="uc-title" data-i18n="find.vision">Images &amp; screenshots</span>
+                        <span class="uc-desc" data-i18n="find.visionDesc">Understand pictures and images</span>
+                    </button>
+                    <button class="use-case-btn" data-use-case="reasoning" type="button">
+                        <span class="uc-icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a4 4 0 0 1 4 4c0 .9-.3 1.7-.8 2.4l.8 1a5.5 5.5 0 0 1 2.5 3.1l1.5 4.5-2 .7-1.5-4.4a3.5 3.5 0 0 0-2-2.2L12 13l-2.5-.9a3.5 3.5 0 0 0-2 2.2L6 19l-2-.7 1.5-4.5a5.5 5.5 0 0 1 2.5-3.1l.8-1A4 4 0 0 1 8 7a4 4 0 0 1 4-4z"></path></svg>
+                        </span>
+                        <span class="uc-title" data-i18n="find.reasoning">Reasoning</span>
+                        <span class="uc-desc" data-i18n="find.reasoningDesc">Hard problems, step-by-step</span>
+                    </button>
+                </div>
+
+                <div id="recommendationsArea" hidden>
+                    <div class="view-head rec-head">
+                        <h2 id="recTitle" data-i18n="rec.title">Recommended for you</h2>
+                        <p class="view-sub" id="recSub"></p>
+                    </div>
+                    <div id="recommendationsGrid" class="recs" aria-live="polite"></div>
+                </div>
+            </section>
+
+            <!-- Browse models -->
+            <section class="view" id="view-browse" hidden aria-labelledby="browseTitle">
+                <div class="view-head">
+                    <h2 id="browseTitle" data-i18n="browse.title">Browse models</h2>
+                    <p class="view-sub" data-i18n="browse.subtitle">Search the full catalog and compare what fits this computer.</p>
+                </div>
+
+                <div class="browse-toolbar">
+                    <div class="search-box">
+                        <span class="search-icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"></circle><path d="M21 21l-4.3-4.3"></path></svg>
+                        </span>
+                        <input id="browseSearch" type="search" placeholder="Search by name or provider…" autocomplete="off" aria-label="Search models" data-i18n-placeholder="browse.searchPlaceholder" data-i18n-aria="browse.searchAria">
+                    </div>
+                    <label class="field">
+                        <span class="field-label" data-i18n="browse.sortLabel">Sort by</span>
+                        <select id="browseSort">
+                            <option value="score" data-i18n="browse.sortScore">Best fit</option>
+                            <option value="tps" data-i18n="browse.sortTps">Speed</option>
+                            <option value="params" data-i18n="browse.sortParams">Size</option>
+                            <option value="mem" data-i18n="browse.sortMem">Memory use</option>
+                            <option value="newest" data-i18n="browse.sortNewest">Newest</option>
+                        </select>
+                    </label>
+                    <label class="field">
+                        <span class="field-label" data-i18n="browse.minFitLabel">Minimum fit</span>
+                        <select id="browseMinFit">
+                            <option value="" data-i18n="browse.minFitAny">Any runnable</option>
+                            <option value="marginal" data-i18n="browse.minFitMarginal">Marginal</option>
+                            <option value="good" data-i18n="browse.minFitGood">Good</option>
+                            <option value="perfect" data-i18n="browse.minFitPerfect">Perfect</option>
+                        </select>
+                    </label>
+                </div>
+
+                <!-- Advanced filter row (progressive disclosure) -->
+                <div class="browse-filters" id="browseFilters" hidden>
+                    <label class="check-field">
+                        <input id="filterInstalled" type="checkbox">
+                        <span data-i18n="filters.installed">Installed only</span>
+                    </label>
+                    <label class="check-field">
+                        <input id="filterVision" type="checkbox">
+                        <span data-i18n="filters.vision">Vision</span>
+                    </label>
+                    <label class="check-field">
+                        <input id="filterTools" type="checkbox">
+                        <span data-i18n="filters.tools">Tool use</span>
+                    </label>
+                    <label class="field">
+                        <span class="field-label" data-i18n="filters.size">Size</span>
+                        <select id="filterSize">
+                            <option value="" data-i18n="filters.any">Any</option>
+                            <option value="lt1">&lt; 1B</option>
+                            <option value="1to3">1–3B</option>
+                            <option value="3to7">3–7B</option>
+                            <option value="7to13">7–13B</option>
+                            <option value="13to30">13–30B</option>
+                            <option value="30to70">30–70B</option>
+                            <option value="gt70">70B+</option>
+                        </select>
+                    </label>
+                    <label class="field">
+                        <span class="field-label" data-i18n="filters.license">Licence</span>
+                        <select id="filterLicense">
+                            <option value="" data-i18n="filters.any">Any</option>
+                        </select>
+                    </label>
+                    <label class="field">
+                        <span class="field-label" data-i18n="filters.language">Language</span>
+                        <select id="filterLanguage">
+                            <option value="" data-i18n="filters.any">Any</option>
+                        </select>
+                    </label>
+                </div>
+
+                <!-- Compare selection bar -->
+                <div class="compare-bar" id="compareBar" hidden>
+                    <span class="compare-bar-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3v18M16 3v18M3 8h5M3 16h5M16 8h5M16 16h5"></path></svg>
+                    </span>
+                    <span class="compare-bar-text" id="compareBarText"></span>
+                    <span class="compare-bar-count" id="compareCount"></span>
+                    <span class="compare-bar-actions">
+                        <button class="btn btn-secondary btn-sm" id="compareViewBtn" type="button"></button>
+                        <button class="btn btn-ghost btn-sm" id="compareClearBtn" type="button"></button>
+                    </span>
+                </div>
+
+                <!-- Advanced hardware simulation -->
+                <div class="advanced-panel" id="advancedPanel" hidden aria-label="Hardware simulation">
+                    <div class="advanced-panel-head">
+                        <h3 data-i18n="advanced.title">Simulate different hardware</h3>
+                        <p data-i18n="advanced.subtitle">Override what we detected to plan for another machine.</p>
+                    </div>
+                    <div class="advanced-panel-grid">
+                        <label class="field">
+                            <span class="field-label" data-i18n="advanced.memory">GPU memory (GB)</span>
+                            <input id="ovMemory" type="number" min="0" step="1" placeholder="Detected" aria-label="GPU memory override" data-i18n-aria="advanced.memoryAria">
+                        </label>
+                        <label class="field">
+                            <span class="field-label" data-i18n="advanced.ram">System RAM (GB)</span>
+                            <input id="ovRam" type="number" min="0" step="1" placeholder="Detected" aria-label="System RAM override" data-i18n-aria="advanced.ramAria">
+                        </label>
+                        <label class="field">
+                            <span class="field-label" data-i18n="advanced.cores">CPU cores</span>
+                            <input id="ovCores" type="number" min="1" step="1" placeholder="Detected" aria-label="CPU core override" data-i18n-aria="advanced.coresAria">
+                        </label>
+                        <label class="field">
+                            <span class="field-label" data-i18n="advanced.context">Context length</span>
+                            <input id="ovContext" type="number" min="1024" step="1024" placeholder="Default" aria-label="Context length override" data-i18n-aria="advanced.contextAria">
+                        </label>
+                    </div>
+                    <p class="advanced-panel-hint" data-i18n="advanced.hint">Leave blank to use what we detected. Changes apply to Browse and recommendations.</p>
+                </div>
+
+                <div id="comparePanel" class="compare-panel" hidden aria-live="polite"></div>
+                <div id="browseResults" class="browse-results" aria-live="polite"></div>
+            </section>
+
+            <!-- Installed -->
+            <section class="view" id="view-installed" hidden aria-labelledby="installedTitle">
+                <div class="view-head view-head-row">
+                    <div>
+                        <h2 id="installedTitle" data-i18n="installed.title">Models on this computer</h2>
+                        <p class="view-sub" data-i18n="installed.subtitle">Already downloaded and ready to use with Ollama.</p>
+                    </div>
+                    <button class="btn btn-secondary btn-sm" id="refreshInstalledBtn" type="button" aria-label="Refresh installed models" data-i18n-aria="installed.refreshAria">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.6-6.4"></path><path d="M21 3v6h-6"></path></svg>
+                        <span data-i18n="installed.refresh">Refresh</span>
+                    </button>
+                </div>
+                <div id="installedList" class="installed-list"></div>
+            </section>
+
+            <!-- Performance -->
+            <section class="view" id="view-performance" hidden aria-labelledby="perfTitle">
+                <div class="view-head">
+                    <h2 id="perfTitle" data-i18n="performance.title">Test performance</h2>
+                    <p class="view-sub" data-i18n="performance.subtitle">Run a real speed test on an installed model with Ollama on this computer.</p>
+                </div>
+
+                <div class="bench-panel">
+                    <label class="field">
+                        <span class="field-label" data-i18n="performance.model">Model</span>
+                        <select id="benchModelSelect">
+                            <option value="" data-i18n="performance.noModels">No installed models</option>
+                        </select>
+                    </label>
+                    <div class="bench-actions">
+                        <button class="btn btn-primary" id="benchRunBtn" type="button" data-i18n="performance.run">Test Performance</button>
+                        <span class="bench-hint" data-i18n="performance.runsHint">One warm-up run, then 3 measured runs.</span>
+                    </div>
+                </div>
+
+                <div id="benchProgress" class="bench-progress" hidden aria-live="polite">
+                    <div class="progress-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="benchProgressBar">
+                        <div class="progress-fill" id="benchProgressFill"></div>
+                    </div>
+                    <p class="bench-progress-text" id="benchProgressText"></p>
+                </div>
+
+                <div id="benchResult" class="bench-result" hidden aria-live="polite"></div>
+
+                <div class="view-head sub-head">
+                    <h3 data-i18n="performance.historyTitle">Previous measurements</h3>
+                    <p class="view-sub" data-i18n="performance.historySub">Measured on this computer by this app. Estimates are shown for comparison.</p>
+                </div>
+                <div id="benchHistory" class="bench-history" aria-live="polite"></div>
+            </section>
+
+            <!-- Hardware Planner -->
+            <section class="view" id="view-planner" hidden aria-labelledby="plannerTitle">
+                <div class="view-head">
+                    <h2 id="plannerTitle" data-i18n="planner.title">Hardware Planner</h2>
+                    <p class="view-sub" data-i18n="planner.subtitle">Pick a model and see what hardware it needs — and whether this computer can run it.</p>
+                </div>
+
+                <div class="planner-panel">
+                    <label class="field planner-search-field">
+                        <span class="field-label" data-i18n="planner.pickModel">Search for a model</span>
+                        <div class="planner-search-wrap">
+                            <div class="search-box planner-search-box">
+                                <span class="search-icon" aria-hidden="true">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"></circle><path d="M21 21l-4.3-4.3"></path></svg>
+                                </span>
+                                <input id="plannerSearch" type="search" placeholder="Search for a model…" autocomplete="off" aria-label="Search models for planning" data-i18n-placeholder="planner.searchPlaceholder" data-i18n-aria="planner.searchAria">
+                            </div>
+                            <div id="plannerSuggestions" class="planner-suggestions" hidden></div>
+                        </div>
+                        <span class="planner-hint" data-i18n="planner.hint">Type a model name — for example “qwen” or “llama” — then choose it.</span>
+                    </label>
+                    <p id="plannerEmpty" class="planner-empty" data-i18n="planner.empty">Choose a model to see the hardware it needs.</p>
+                    <div id="selectedModelCard" class="selected-model-card" hidden></div>
+                    <div class="planner-advanced" hidden>
+                        <label class="field">
+                            <span class="field-label" data-i18n="planner.quant">Quantisation</span>
+                            <select id="plannerQuant">
+                                <option value="">Default</option>
+                                <option value="Q4_K_M">Q4_K_M</option>
+                                <option value="Q5_K_M">Q5_K_M</option>
+                                <option value="Q6_K">Q6_K</option>
+                                <option value="Q8_0">Q8_0</option>
+                                <option value="F16">F16</option>
+                            </select>
+                        </label>
+                        <label class="field">
+                            <span class="field-label" data-i18n="planner.context">Context length</span>
+                            <input id="plannerContext" type="number" min="1024" step="1024" placeholder="Default">
+                        </label>
+                        <label class="field">
+                            <span class="field-label" data-i18n="planner.targetTps">Target output speed (tok/s)</span>
+                            <input id="plannerTargetTps" type="number" min="1" step="1" placeholder="—">
+                        </label>
+                    </div>
+                </div>
+
+                <div id="planResult" class="plan-result" hidden aria-live="polite"></div>
+            </section>
+
+            <!-- Guide -->
+
+            <!-- Guide / Learn -->
+            <section class="view" id="view-guide" hidden aria-labelledby="guideTitle">
+                <div class="view-head">
+                    <h2 id="guideTitle" data-i18n="guide.title">Learn</h2>
+                    <p class="view-sub" data-i18n="guide.subtitle">Plain-language answers about local AI models.</p>
+                </div>
+
+                <div class="guide-search">
+                    <span class="search-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"></circle><path d="M21 21l-4.3-4.3"></path></svg>
+                    </span>
+                    <input id="guideSearch" type="search" placeholder="Search topics and terms…" autocomplete="off" aria-label="Search the guide" data-i18n-placeholder="guide.searchPlaceholder" data-i18n-aria="guide.searchAria">
+                </div>
+
+                <h3 class="guide-section-title" data-i18n="guide.topicsTitle">Topics</h3>
+                <div id="guideTopics" class="guide-topics" aria-live="polite"></div>
+
+                <h3 class="guide-section-title" data-i18n="guide.glossaryTitle">Glossary</h3>
+                <div id="guideGlossary" class="guide-glossary" aria-live="polite"></div>
+            </section>
+
+        </main>
+    </div>
+
+    <!-- Download confirmation -->
+    <div class="modal-overlay" id="downloadModal" hidden>
+        <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+            <h2 id="modalTitle" data-i18n="download.modalTitle">Download &amp; test this model</h2>
+            <div id="modalContent"></div>
+            <div class="modal-actions">
+                <button class="btn btn-ghost" id="modalCancel" type="button" data-i18n="download.cancel">Cancel</button>
+                <button class="btn btn-primary" id="modalConfirm" type="button" data-i18n="download.confirm">Download &amp; test</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Download progress -->
+    <div class="progress-pane" id="progressPane" hidden aria-labelledby="progressTitle">
+        <div class="progress-pane-inner">
+            <div class="progress-pane-head">
+                <h2 id="progressTitle" data-i18n="download.title">Downloading…</h2>
+                <button class="icon-btn" id="progressClose" type="button" aria-label="Close download panel" data-i18n-aria="download.closeAria">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"></path></svg>
+                </button>
+            </div>
+            <div class="progress-container">
+                <div class="progress-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="progressBar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+                <div class="progress-meta">
+                    <p class="progress-text" id="progressText"></p>
+                    <p class="progress-pct" id="progressPct">0%</p>
+                </div>
+                <div id="downloadResult" class="download-result" hidden></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="errorBanner" class="error-banner" hidden role="alert"></div>
+
+    <script src="/assets/app.js"></script>
+</body>
+</html>

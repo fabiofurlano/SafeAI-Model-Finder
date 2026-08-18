@@ -1,0 +1,8 @@
+[workspace]
+members = ["llmfit-core", "safeai-model-finder"]
+default-members = ["llmfit-core", "safeai-model-finder"]
+resolver = "3"
+
+[workspace.package]
+version = "1.1.8"
+license = "MIT"

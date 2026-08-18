@@ -1,0 +1,58 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://llmfit.dev/schemas/community-benchmark.json",
+  "title": "llmfit community benchmark submission",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "submittedAtUnix", "tool", "hardware", "results"],
+  "properties": {
+    "schemaVersion": { "type": "integer", "const": 1 },
+    "submittedAtUnix": { "type": "integer", "minimum": 0 },
+    "tool": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "version"],
+      "properties": {
+        "name": { "type": "string" },
+        "version": { "type": "string" }
+      }
+    },
+    "hardware": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["hwClass", "gpuCount", "unifiedMemory", "cpu", "cpuCores", "ramGb", "os"],
+      "properties": {
+        "hwClass": { "type": "string", "enum": ["DISCRETE_GPU", "UNIFIED", "CPU_ONLY"] },
+        "hardwareName": { "type": ["string", "null"] },
+        "memTierGb": { "type": ["integer", "null"], "minimum": 0 },
+        "vramGb": { "type": ["number", "null"], "minimum": 0 },
+        "gpuCount": { "type": "integer", "minimum": 0 },
+        "unifiedMemory": { "type": "boolean" },
+        "cpu": { "type": "string" },
+        "cpuCores": { "type": "integer", "minimum": 1 },
+        "ramGb": { "type": "number", "minimum": 0 },
+        "os": { "type": "string", "enum": ["linux", "macos", "windows"] }
+      }
+    },
+    "results": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["model", "provider", "numRuns", "avgTps", "minTps", "maxTps", "avgTotalMs", "avgOutputTokens"],
+        "properties": {
+          "model": { "type": "string", "minLength": 1 },
+          "provider": { "type": "string", "enum": ["ollama", "vllm", "mlx", "llamacpp"] },
+          "numRuns": { "type": "integer", "minimum": 1 },
+          "avgTps": { "type": "number", "minimum": 0, "maximum": 100000 },
+          "minTps": { "type": "number", "minimum": 0, "maximum": 100000 },
+          "maxTps": { "type": "number", "minimum": 0, "maximum": 100000 },
+          "avgTtftMs": { "type": ["number", "null"], "minimum": 0 },
+          "avgTotalMs": { "type": "number", "minimum": 0 },
+          "avgOutputTokens": { "type": "number", "minimum": 0 }
+        }
+      }
+    }
+  }
+}

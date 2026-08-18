@@ -1,0 +1,738 @@
+{
+  "meta": {
+    "lang": "en",
+    "name": "English"
+  },
+  "brand": {
+    "name": "SafeAI",
+    "finder": "Model Finder"
+  },
+  "nav": {
+    "mainAria": "Main navigation",
+    "overview": "Overview",
+    "find": "Find a model",
+    "browse": "Browse models",
+    "installed": "Installed",
+    "guide": "Learn",
+    "performance": "Performance",
+    "planner": "Hardware Planner",
+    "modeAria": "Switch between Easy and Advanced mode",
+    "themeAria": "Switch between light and dark appearance",
+    "langAria": "Choose language",
+    "ollamaReady1": "Ollama ready · 1 model",
+    "ollamaReadyN": "Ollama ready · {n} models",
+    "ollamaDown": "Ollama not running",
+    "ollamaChecking": "Checking Ollama…",
+    "ollamaUnknown": "Ollama unknown"
+  },
+  "mode": {
+    "easy": "Easy",
+    "advanced": "Advanced"
+  },
+  "overview": {
+    "title1": "Find the right model",
+    "title2": "for this computer",
+    "subtitle": "We looked at your hardware and will recommend the best local models for what you want to do. Nothing leaves this computer.",
+    "machineAria": "This computer",
+    "processor": "Processor",
+    "memory": "Memory",
+    "graphics": "Graphics",
+    "ollama": "Ollama",
+    "detecting": "Detecting…",
+    "checking": "Checking…",
+    "couldNotDetect": "Could not detect",
+    "ready": "Ready",
+    "canDownload": "Can download models",
+    "notRunning": "Not running",
+    "installHint": "Install Ollama to download models",
+    "ctaFind": "Find a model for me",
+    "ctaBrowse": "Browse all models",
+    "memory32": "Plenty of room for local models",
+    "memory16": "Good room for local models",
+    "memory8": "Runs small and medium models well",
+    "memorySmall": "Best for small, efficient models",
+    "gpuNone": "None",
+    "gpuNoneHint": "CPU-only — fine for smaller models",
+    "gpuIntegrated": "Integrated graphics",
+    "gpuDedicated": "Dedicated GPU · {n} GB",
+    "gpuPlain": "GPU · {n} GB",
+    "cpuCores1": "{n} core",
+    "cpuCoresN": "{n} cores"
+  },
+  "find": {
+    "title": "What will you use it for?",
+    "subtitle": "Pick one — we'll match a model that fits this computer.",
+    "everyday": "Everyday assistant",
+    "everydayDesc": "Questions, chat and general help",
+    "writing": "Writing & documents",
+    "writingDesc": "Emails, reports and summaries",
+    "coding": "Coding",
+    "codingDesc": "Code help and explanations",
+    "vision": "Images & screenshots",
+    "visionDesc": "Understand pictures and images",
+    "reasoning": "Reasoning",
+    "reasoningDesc": "Hard problems, step-by-step"
+  },
+  "rec": {
+    "title": "Recommended for you",
+    "subtitle": "Best matches for {uc} on this computer",
+    "recommended": "Recommended",
+    "faster": "Faster & Lighter",
+    "betterQuality": "Better Quality",
+    "alternative": "Alternative",
+    "installed": "Already on this computer",
+    "installedShort": "Already installed",
+    "slow": "Runs slowly on this computer",
+    "slowShort": "Runs slowly",
+    "perfLabel": "Performance",
+    "qualityLabel": "Quality",
+    "fitLabel": "Memory fit",
+    "download": "Download model",
+    "downloadShort": "Download",
+    "test": "Test model",
+    "testShort": "Test",
+    "descRecommended": "Best overall balance for {uc}. Expected to run {how} on this computer.",
+    "descRecommendedHowPerfect": "perfectly",
+    "descRecommendedHowGood": "comfortably",
+    "descRecommendedHowOther": "adequately",
+    "descFaster": "Smaller memory footprint (~{gb} GB) with good quality for everyday use.",
+    "descBetter": "Higher quality model for {uc}. May be slower but produces better results.",
+    "descAlt": "Another suitable option for this hardware.",
+    "noResults": "No suitable models found for this combination. Try a different use case.",
+    "loadError": "Could not load recommendations: {msg}",
+    "loadingAria": "Loading recommendations"
+  },
+  "browse": {
+    "title": "Browse models",
+    "subtitle": "Search the full catalog and compare what fits this computer.",
+    "searchPlaceholder": "Search by name or provider…",
+    "searchAria": "Search models",
+    "searchingAria": "Searching models",
+    "sortLabel": "Sort by",
+    "sortScore": "Best fit",
+    "sortTps": "Speed",
+    "sortParams": "Size",
+    "sortMem": "Memory use",
+    "minFitLabel": "Minimum fit",
+    "minFitAny": "Any runnable",
+    "minFitMarginal": "Marginal",
+    "minFitGood": "Good",
+    "minFitPerfect": "Perfect",
+    "summaryQuery1": "{n} result for “{q}”",
+    "summaryQueryN": "{n} results for “{q}”",
+    "summaryAll1": "{n} runnable model — showing the top {m}",
+    "summaryAllN": "{n} runnable models — showing the top {m}",
+    "empty": "No models match. Try a different search or loosen the fit filter.",
+    "loadError": "Could not search models: {msg}",
+    "compare": "Compare",
+    "compareAria": "Add to comparison",
+    "compareBar": "Compare up to 3 models side by side.",
+    "compareCount": "{n}/3 selected",
+    "compareClear": "Clear",
+    "compareView": "Compare",
+    "compareClose": "Close comparison",
+    "compareMax": "You can compare up to 3 models. Remove one to add another.",
+    "compareColModel": "Model",
+    "compareColSize": "Size",
+    "compareColSpeed": "Estimated speed",
+    "compareColMemory": "Memory needed",
+    "compareColFit": "Fit",
+    "compareColQuant": "Quantisation",
+    "compareColContext": "Context",
+    "compareColCaps": "Capabilities",
+    "compareColLicense": "License",
+    "compareColArch": "Architecture",
+    "compareEmpty": "Select models with the Compare button to see them side by side.",
+    "sortNewest": "Newest"
+  },
+  "filters": {
+    "installed": "Installed only",
+    "vision": "Vision",
+    "tools": "Tool use",
+    "size": "Size",
+    "license": "Licence",
+    "language": "Language",
+    "any": "Any"
+  },
+  "quant": {
+    "label": "Quantisation — smaller needs less memory, lower quality",
+    "fits": "Fits",
+    "needs": "Needs {n} GB"
+  },
+  "details": {
+    "toggle": "Technical details",
+    "model": "Model",
+    "tag": "Ollama tag",
+    "quant": "Quantisation",
+    "speed": "Estimated speed",
+    "memory": "Memory needed",
+    "disk": "Download size",
+    "fit": "Fit",
+    "license": "License",
+    "caps": "Capabilities",
+    "runMode": "Run mode",
+    "useCase": "Use case",
+    "context": "Context",
+    "moE": "MoE",
+    "release": "Released",
+    "languages": "Languages",
+    "activeParams": "Active parameters",
+    "audioShort": "Audio",
+    "ttsShort": "TTS",
+    "total": "total",
+    "available": "available",
+    "backend": "backend"
+  },
+  "advanced": {
+    "title": "Simulate different hardware",
+    "subtitle": "Override what we detected to plan for another machine.",
+    "memory": "GPU memory (GB)",
+    "ram": "System RAM (GB)",
+    "cores": "CPU cores",
+    "context": "Context length",
+    "hint": "Leave blank to use what we detected. Changes apply to Browse and recommendations.",
+    "memoryAria": "GPU memory override",
+    "ramAria": "System RAM override",
+    "coresAria": "CPU core override",
+    "contextAria": "Context length override"
+  },
+  "installed": {
+    "title": "Models on this computer",
+    "subtitle": "Already downloaded and ready to use with Ollama.",
+    "empty": "No models downloaded yet. Find a model, then download it here.",
+    "emptyNoOllama": "Ollama isn't running, so no models can be downloaded yet. Install or start Ollama and refresh this page.",
+    "ready": "Ready to use",
+    "diskSize": "Disk size",
+    "details": "Model details",
+    "loadError": "Could not load installed models: {msg}",
+    "refresh": "Refresh",
+    "refreshAria": "Refresh installed models"
+  },
+  "remove": {
+    "action": "Remove",
+    "modalTitle": "Remove this model?",
+    "model": "Model",
+    "tag": "Exact Ollama tag",
+    "warning": "This permanently deletes the model from Ollama on this computer. The files are removed from disk and will have to be downloaded again to use them.",
+    "safeaiWarning": "Other apps that use this same Ollama installation — including SafeAI — will also lose access to this model.",
+    "confirm": "Remove model",
+    "running": "Removing…",
+    "runningAria": "Removing model",
+    "removed": "{tag} has been removed from this computer.",
+    "error": "Could not remove the model: {msg}"
+  },
+  "download": {
+    "modalTitle": "Download & test this model",
+    "cancel": "Cancel",
+    "confirm": "Download & test",
+    "model": "Model",
+    "tag": "Ollama tag",
+    "size": "Expected size",
+    "warning": "This will download the model from Ollama's registry. Make sure you have enough disk space and a stable internet connection.",
+    "title": "Downloading…",
+    "starting": "Starting download…",
+    "closeAria": "Close download panel",
+    "complete": "Download complete! Running readiness test…",
+    "installedTitle": "Model installed",
+    "readyText": "is ready to use.",
+    "safeaiHint": "Open SafeAI, refresh the model selector, and choose {name}.",
+    "runTest": "Run readiness test",
+    "failedTitle": "Download failed",
+    "failedHint": "Check your internet connection and that the model tag is valid.",
+    "startError": "Could not start the download: {msg}",
+    "busyTitle": "A download is already in progress. Wait for it to finish."
+  },
+  "progress": {
+    "pullingManifest": "Preparing download…",
+    "downloading": "Downloading…",
+    "verifying": "Verifying…",
+    "writing": "Finishing…",
+    "success": "Download complete",
+    "starting": "Starting download…"
+  },
+  "readiness": {
+    "running": "Running readiness test…",
+    "runningAria": "Running readiness test",
+    "readyTitle": "Ready to use",
+    "responded": "responded successfully.",
+    "safeaiHint": "It's ready in Ollama and in SafeAI — refresh the model selector and choose {name}.",
+    "failedTitle": "Readiness test failed",
+    "failedHint": "{msg}"
+  },
+  "performance": {
+    "title": "Test performance",
+    "subtitle": "Run a real speed test on an installed model using Ollama on this computer.",
+    "model": "Model",
+    "noModels": "No installed models",
+    "run": "Test Performance",
+    "runsHint": "One warm-up run, then 3 measured runs.",
+    "warmup": "Warming up the model…",
+    "running": "Measuring run {n} of {total}…",
+    "measuredLabel": "MEASURED ON THIS COMPUTER",
+    "tpsPer": "tokens/sec",
+    "sec": "sec",
+    "tpsUnit": "tok/s",
+    "estimated": "Estimated",
+    "noEstimate": "No catalogue estimate available for this model.",
+    "responseStart": "Response start",
+    "advancedTitle": "Run details",
+    "runsLabel": "Runs",
+    "minMax": "Min – max speed",
+    "avgTotal": "Average total latency",
+    "avgOutput": "Average output tokens",
+    "startError": "Could not start the test: {msg}",
+    "failed": "The speed test failed: {msg}",
+    "historyTitle": "Previous measurements",
+    "historySub": "Measured on this computer by this app. Estimates are shown only where the catalogue knows them — measurements are never estimates.",
+    "noHistory": "No previous measurements yet. Run a speed test above.",
+    "measuredOn": "Measured on",
+    "runsShort": "Runs",
+    "secShort": "s"
+  },
+  "planner": {
+    "title": "Hardware Planner",
+    "subtitle": "Pick a model and see what hardware it needs — and whether this computer can run it.",
+    "pickModel": "Search for a model",
+    "searchPlaceholder": "Search for a model…",
+    "empty": "Choose a model to see the hardware it needs.",
+    "hint": "Type a model name — for example “qwen” or “llama” — then choose it.",
+    "selectedTitle": "Selected model",
+    "changeModel": "Change model",
+    "showMore": "Show more",
+    "ctxWord": "context",
+    "searchAria": "Search models for planning",
+    "quant": "Quantisation",
+    "context": "Context length",
+    "targetTps": "Target output speed (tok/s)",
+    "loadingAria": "Planning…",
+    "error": "Could not plan this model: {msg}",
+    "runsOnThis": "Runs on this computer",
+    "missingHardware": "Does not fit on this computer yet",
+    "minRam": "Minimum RAM",
+    "recRam": "Recommended RAM",
+    "vram": "GPU memory needed",
+    "path": "Best run path",
+    "expectedPerf": "Expected speed here",
+    "gap": "This model needs about {need} of memory. Your computer has {have}.",
+    "pathGpu": "GPU",
+    "pathOffload": "CPU + GPU",
+    "pathCpu": "CPU only",
+    "advancedTitle": "Advanced planning",
+    "pathsTitle": "Run paths",
+    "upgradesTitle": "What to add",
+    "feasible": "Feasible",
+    "notFeasible": "Not feasible"
+  },
+  "errors": {
+    "token": "Your session expired. Refresh the page and try again.",
+    "downloadBusy": "A download is already in progress. Wait for it to finish.",
+    "localhost": "This action is only available on this computer.",
+    "ollamaDown": "Ollama is not running. Start Ollama and refresh.",
+    "notFound": "This download is no longer available. Refresh the page.",
+    "modelStatus": "The model returned an unexpected status.",
+    "invalidTag": "That model name is not valid.",
+    "notInstalled": "This model is not installed.",
+    "deleteFailed": "Ollama could not remove the model.",
+    "unknown": "{msg}"
+  },
+  "speed": {
+    "veryFast": "Very fast",
+    "fast": "Fast",
+    "moderate": "Moderate",
+    "slow": "Slow"
+  },
+  "fit": {
+    "perfect": "Fits comfortably",
+    "good": "Fits well",
+    "marginal": "Tight fit",
+    "tight": "May not fit"
+  },
+  "guide": {
+    "title": "Learn",
+    "subtitle": "Plain-language answers about local AI models — what they are, what the numbers mean, and why they behave differently on different computers.",
+    "searchPlaceholder": "Search topics and terms…",
+    "searchAria": "Search the guide",
+    "noMatches": "Nothing matches “{q}”. Try another word.",
+    "topicsTitle": "Topics",
+    "glossaryTitle": "Glossary",
+    "topics": {
+      "size": {
+        "title": "Model size",
+        "summary": "What 1B, 7B or 32B means and why it matters",
+        "icon": "size",
+        "paragraphs": [
+          "A model's size — 1B, 7B, 32B and so on — is the number of parameters it uses. A parameter is a value the model learned while it was trained; together they hold what the model knows.",
+          "Bigger models are generally smarter and more articulate, but they need more memory and are slower on the same computer. A 7B model can run on many laptops; a 70B model needs a workstation or a very powerful machine.",
+          "For most everyday tasks, a small or medium model is the right balance: fast enough to feel natural, good enough for chat, writing and coding help."
+        ],
+        "bullets": [
+          "1B – tiny and very fast; fine for simple chat and tests",
+          "3B – small; good for quick answers on modest computers",
+          "7B – the sweet spot for many laptops and desktops",
+          "14B – noticeably smarter; needs more memory",
+          "32B+ – high quality, but requires a powerful machine"
+        ]
+      },
+      "quant": {
+        "title": "Quantization",
+        "summary": "How models are compressed to use less memory and storage",
+        "icon": "quant",
+        "paragraphs": [
+          "Quantization is a way of compressing a model so it takes less memory and disk space. The model's numbers are stored with less precision — a bit like saving a photo as a smaller file.",
+          "Less compression (Q8, Q6) keeps more quality but uses more space. More compression (Q4, Q3, Q2) uses far less space but can make the model slightly less accurate. Q4 is the most common balance and is what most people use.",
+          "Two versions of the same model can behave differently because they are different compressions. A Q8 version may answer a bit better than a Q4 version of the same size; a Q4 version of a big model can still beat a Q8 version of a much smaller one. The right choice depends on your memory and what you need."
+        ],
+        "bullets": [
+          "Q8 – highest quality, largest files",
+          "Q6 – very good quality, moderate size",
+          "Q5 – good balance for most users",
+          "Q4 – most common: small files, small quality loss",
+          "Q3 / Q2 – smallest files, noticeable quality loss"
+        ]
+      },
+      "ramvram": {
+        "title": "RAM and VRAM",
+        "summary": "System memory, graphics memory and unified memory",
+        "icon": "ram",
+        "paragraphs": [
+          "RAM is your computer's working memory. When a model runs on the processor alone, it is loaded into RAM, so the model must fit in the memory that is free at that moment.",
+          "VRAM is the dedicated memory of a graphics card. A model that runs on the GPU is loaded into VRAM, which is usually much faster. If a model does not fit in VRAM, it cannot run on the GPU.",
+          "Some computers — most Apple Silicon Macs and many recent laptops — use unified memory: the same memory is shared between the processor and the graphics chip. There, VRAM and RAM are the same pool.",
+          "What matters in practice: free memory, not total memory. A 16 GB computer with 12 GB already in use has little room for a model."
+        ],
+        "bullets": [
+          "A model needs a little more memory than its file size",
+          "Running several things at once leaves less room for a model",
+          "GPU inference is usually faster than CPU inference"
+        ]
+      },
+      "tokens": {
+        "title": "Tokens per second",
+        "summary": "What tok/s means and how to read it",
+        "icon": "speed",
+        "paragraphs": [
+          "Models don't read text as words — they read it as tokens, small pieces of text (roughly one token per short word). Tokens per second (tok/s) is simply how many of those pieces the model produces each second.",
+          "Around 10–20 tok/s feels natural for a conversation. 30 or more feels fast, like a quick typist. Below 5 tok/s feels slow: answers arrive word by word.",
+          "In this app, speeds are estimates calculated from your hardware, not measurements. The only way to know the real speed on your computer is to run the model and measure it — that is called a measured result, and it is stronger evidence than an estimate."
+        ],
+        "bullets": [
+          "20+ tok/s – smooth, natural conversation",
+          "10–20 tok/s – fine for chat and most tasks",
+          "5–10 tok/s – usable but noticeably slow",
+          "under 5 tok/s – better to choose a smaller model"
+        ]
+      },
+      "context": {
+        "title": "Context",
+        "summary": "How much the model can remember while answering",
+        "icon": "context",
+        "paragraphs": [
+          "The context window is how much text the model can see at once — your message, previous messages, and any documents you paste. It is measured in tokens: 8K means roughly 8,000 tokens, about 6,000 short words.",
+          "A longer context lets you have longer conversations and paste bigger documents. The trade-off is memory: the longer the context, the more memory the model needs while running.",
+          "The maximum advertised context is not always the best setting. Running at the maximum uses more memory and can slow the model down. For most everyday use, 8K to 16K is plenty."
+        ],
+        "bullets": [
+          "Short context (4K): quick chats, short documents",
+          "Medium (8–16K): normal conversations and pasted text",
+          "Long (32K+): long documents and big code files"
+        ]
+      },
+      "caps": {
+        "title": "Capabilities",
+        "summary": "Chat, coding, reasoning, vision and tool use",
+        "icon": "caps",
+        "paragraphs": [
+          "Models specialize. A chat model is good at conversation, a coding model at code, a reasoning model at step-by-step problems, and a vision model can look at images.",
+          "When you pick a use case in the app, we filter for models that are good at it. A model that is not marked for vision cannot understand a screenshot, no matter how big it is.",
+          "Some models can also use tools — for example, search the web or run calculations — when the app around them supports it. That depends on the software you use the model from, not only on the model itself."
+        ],
+        "bullets": [
+          "Chat – everyday conversation and questions",
+          "Coding – writing, explaining and fixing code",
+          "Reasoning – difficult problems, thought out step by step",
+          "Vision – understanding images and screenshots",
+          "Tools – calling other programs when the app allows it"
+        ]
+      },
+      "moe": {
+        "title": "Mixture of Experts (MoE)",
+        "summary": "Why a large model can still be surprisingly efficient",
+        "icon": "moe",
+        "paragraphs": [
+          "Most models use all of their parameters for every word. Mixture-of-Experts (MoE) models are different: they split into many small specialists and activate only a few for each word.",
+          "This is why an MoE model can have a huge total size — 100B parameters or more — while needing much less memory than a normal model of the same size. Only the active experts are loaded and used at each step.",
+          "The trade-off: MoE models can be slower per word because the model must decide which experts to use. Still, they often deliver big-model quality on hardware that could never run a normal model of the same size."
+        ],
+        "bullets": [
+          "Total parameters – the full size of the model",
+          "Active parameters – the part actually used for each word",
+          "MoE models often fit where a normal model of the same size would not"
+        ]
+      },
+      "tags": {
+        "title": "Ollama model tags",
+        "summary": "How to read names like llama3.2:3b and qwen2.5:7b-instruct-q4_K_M",
+        "icon": "tag",
+        "paragraphs": [
+          "Ollama identifies models with tags: a family name, then after the colon a version or size. For example, in llama3.2:3b, the family is llama3.2 and 3b is the 3-billion-parameter version.",
+          "Sometimes a tag also carries the quantization, like qwen2.5:7b-instruct-q4_K_M. The exact tag matters: it defines exactly which file will be downloaded and run.",
+          "That is why this app always shows you the exact tag before downloading — the name, size and compression are all part of it. If the tag is wrong, you get a different model than you expected."
+        ],
+        "bullets": [
+          "family:version – e.g. llama3.2:3b",
+          "family:version-quantization – e.g. qwen2.5:7b-instruct-q4_K_M",
+          "Different tags of the same family can behave very differently"
+        ]
+      },
+      "license": {
+        "title": "Model licences",
+        "summary": "Why you should check what a model allows",
+        "icon": "license",
+        "paragraphs": [
+          "Models are published under licences that say what you may and may not do with them. Some are open and permissive; others restrict commercial use, or apply only to certain sizes.",
+          "This app does not give legal advice, but it shows each model's licence before you download. If you plan to use a model at work or in a product, check the licence text of the exact model and size.",
+          "The licence of a model is separate from the licence of the software that runs it. Both matter, but for different reasons."
+        ],
+        "bullets": [
+          "Open licences (Apache-2.0, MIT) – few restrictions",
+          "Llama-style licences – free for most uses, some conditions",
+          "Some licences exclude commercial use or large-scale services"
+        ]
+      },
+      "measured": {
+        "title": "Estimated versus measured",
+        "summary": "The difference between a guess and real evidence",
+        "icon": "measured",
+        "paragraphs": [
+          "Every model in this app comes with an estimate of speed and memory use, calculated from your hardware and the model's size. Estimates are useful for comparing models, but they are not measurements.",
+          "A measured result comes from actually running the model on your computer — the real tokens per second, the real memory use. It is the strongest evidence, because your hardware and settings decide the outcome.",
+          "After you download a model, you can run a readiness test in this app. The result tells you the model truly works here, which is more reliable than any estimate."
+        ],
+        "bullets": [
+          "Estimate – calculated from hardware, useful for comparing",
+          "Measured – recorded from a real run on this computer",
+          "Measured always beats estimated"
+        ]
+      }
+    },
+    "glossary": {
+      "entries": [
+        {
+          "term": "Quantization",
+          "def": "Compressing a model to use less memory and storage, with a small quality trade-off."
+        },
+        {
+          "term": "Parameter",
+          "def": "A learned value inside a model. More parameters usually mean a smarter, heavier model."
+        },
+        {
+          "term": "Token",
+          "def": "A small piece of text the model reads and writes (roughly a short word)."
+        },
+        {
+          "term": "Tokens per second (tok/s)",
+          "def": "How fast the model produces text."
+        },
+        {
+          "term": "Context window",
+          "def": "How much text the model can see at once while answering."
+        },
+        {
+          "term": "RAM",
+          "def": "The working memory of the computer, used when a model runs on the processor."
+        },
+        {
+          "term": "VRAM",
+          "def": "The dedicated memory of a graphics card, used when a model runs on the GPU."
+        },
+        {
+          "term": "Unified memory",
+          "def": "One shared memory pool used by both the processor and the graphics chip."
+        },
+        {
+          "term": "GPU",
+          "def": "Graphics processing unit — the chip that can run models much faster than the processor alone."
+        },
+        {
+          "term": "CPU",
+          "def": "The main processor of the computer. Models can run on it, but usually slower than on a GPU."
+        },
+        {
+          "term": "GGUF",
+          "def": "The file format used by Ollama to store and run models."
+        },
+        {
+          "term": "MoE (Mixture of Experts)",
+          "def": "A model that activates only part of itself for each word, saving memory."
+        },
+        {
+          "term": "Ollama",
+          "def": "The local program that downloads and runs models on your computer."
+        },
+        {
+          "term": "Fit",
+          "def": "How comfortably a model fits in your available memory."
+        },
+        {
+          "term": "Inference",
+          "def": "The act of the model producing an answer."
+        },
+        {
+          "term": "Benchmark",
+          "def": "A measured performance test of a model on specific hardware."
+        }
+      ]
+    },
+    "visuals": {
+      "size": {
+        "1B": {
+          "lbl": "1B",
+          "v": "Very light"
+        },
+        "3B": {
+          "lbl": "3B",
+          "v": "Light"
+        },
+        "7B": {
+          "lbl": "7B",
+          "v": "Balanced"
+        },
+        "14B": {
+          "lbl": "14B",
+          "v": "Powerful"
+        },
+        "32Bp": {
+          "lbl": "32B+",
+          "v": "Demanding"
+        }
+      },
+      "quant": {
+        "q4": {
+          "lbl": "Q4",
+          "mem": "Less memory",
+          "spd": "Fastest",
+          "qual": "Small quality loss"
+        },
+        "q5": {
+          "lbl": "Q5",
+          "mem": "Medium memory",
+          "spd": "Balanced",
+          "qual": "Good everyday choice"
+        },
+        "q6": {
+          "lbl": "Q6",
+          "mem": "Larger",
+          "spd": "Slower",
+          "qual": "Very good quality"
+        },
+        "q8": {
+          "lbl": "Q8",
+          "mem": "Largest",
+          "spd": "Slowest",
+          "qual": "Highest quality"
+        },
+        "axes": {
+          "memory": "Memory",
+          "speed": "Speed",
+          "quality": "Quality",
+          "quant": "Quant"
+        }
+      },
+      "ram": {
+        "ram": {
+          "lbl": "RAM",
+          "desc": "CPU working memory"
+        },
+        "vram": {
+          "lbl": "VRAM",
+          "desc": "GPU graphics memory"
+        },
+        "unified": {
+          "lbl": "Unified",
+          "desc": "Apple Silicon — one pool."
+        }
+      },
+      "tokens": {
+        "slow": {
+          "lbl": "Slow",
+          "num": "< 5"
+        },
+        "usable": {
+          "lbl": "Usable",
+          "num": "5–10"
+        },
+        "comfortable": {
+          "lbl": "Comfortable",
+          "num": "10–20"
+        },
+        "fast": {
+          "lbl": "Fast",
+          "num": "20+"
+        }
+      },
+      "context": {
+        "short": {
+          "lbl": "Short · 4K"
+        },
+        "medium": {
+          "lbl": "Medium · 8–16K"
+        },
+        "long": {
+          "lbl": "Long · 32B+"
+        }
+      },
+      "caps": {
+        "primary": "Chat",
+        "subs": [
+          "Coding",
+          "Reasoning",
+          "Vision",
+          "Tools"
+        ]
+      },
+      "moe": {
+        "total": {
+          "t": "Total",
+          "d": "Every parameter loaded into the model file. For example 100B."
+        },
+        "active": {
+          "t": "Active per token",
+          "d": "Only a few experts run at once."
+        },
+        "result": {
+          "t": "Result",
+          "d": "Big-model quality, smaller-model RAM."
+        }
+      },
+      "tags": {
+        "family": "Family",
+        "version": "Version",
+        "quantization": "Quantization",
+        "example": "qwen2.5:7b-instruct-q4_K_M"
+      },
+      "license": {
+        "open": {
+          "tag": "Open",
+          "d": "Few restrictions."
+        },
+        "llama": {
+          "tag": "Llama-style",
+          "d": "Conditions for very large services."
+        },
+        "restricted": {
+          "tag": "Restricted",
+          "d": "No commercial use."
+        }
+      },
+      "measured": {
+        "title": "Estimate vs measured",
+        "body": "Tok/s is calculated from your hardware. A readiness run on this computer is stronger evidence."
+      }
+    }
+  },
+  "lang": {
+    "label": "Language",
+    "en": "English",
+    "it": "Italiano"
+  }
+}

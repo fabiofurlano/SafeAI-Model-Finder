@@ -1,0 +1,33 @@
+{
+  "hardware": {
+    "cpu": "Intel(R) Xeon(R) Gold 6132 CPU @ 2.60GHz",
+    "cpuCores": 28,
+    "gpuCount": 4,
+    "hardwareName": "Tesla T4",
+    "hwClass": "DISCRETE_GPU",
+    "memTierGb": 64,
+    "os": "linux",
+    "ramGb": 62.52,
+    "unifiedMemory": false,
+    "vramGb": 60.0
+  },
+  "results": [
+    {
+      "avgOutputTokens": 195.33,
+      "avgTotalMs": 7688.44,
+      "avgTps": 25.26,
+      "avgTtftMs": null,
+      "maxTps": 25.68,
+      "minTps": 24.93,
+      "model": "Qwen/Qwen2.5-Coder-32B-Instruct-AWQ",
+      "numRuns": 3,
+      "provider": "vllm"
+    }
+  ],
+  "schemaVersion": 1,
+  "submittedAtUnix": 1784112406,
+  "tool": {
+    "name": "llmfit",
+    "version": "1.1.2"
+  }
+}
