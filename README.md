@@ -37,18 +37,63 @@ leaves it.
   session token on all mutating endpoints, and never falls back to a
   public bind.
 
+## Quick start
+
+You need two things: **Ollama** (already installed and running) and
+**SafeAI Model Finder** itself.
+
+1. **Make sure Ollama is installed and running.**
+   Download it from <https://ollama.com/download> for your platform. SafeAI
+   Model Finder manages models through your local Ollama install — if
+   Ollama is missing or stopped, the tool will show "Ollama not running"
+   and downloads will fail with `Connection refused`. We do not bundle
+   or replace it; whatever models you have today stay where they are.
+
+2. **Install SafeAI Model Finder from the terminal** (one line):
+
+   ```bash
+   cargo install --git https://github.com/fabiofurlano/SafeAI-Model-Finder --locked
+   ```
+
+3. **Start it**:
+
+   ```bash
+   safeai-model-finder
+   ```
+
+   A browser tab opens at `http://127.0.0.1:8787/` (or another free
+   loopback port if 8787 is busy), the interface detects your hardware,
+   shows the models already in your Ollama, and lets you find, browse,
+   and download new ones.
+
+If terminal setup is not your thing, jump to
+[Install with an AI agent](#install-with-an-ai-agent); it gives a
+ready-to-copy installation prompt for ChatGPT Codex, Claude Code,
+Cline, Cursor agent, OpenCode, or any other capable coding/computer
+agent with terminal access.
+
+If something doesn't work, see [Troubleshooting](#troubleshooting).
+
 ## Requirements
 
 SafeAI Model Finder is installed and started from a terminal. You need:
 
 **To install the tool (one-time)**
 
-- A working **Rust** toolchain (Cargo), `rustc` 1.95 or newer.
-  Install from <https://rustup.rs> if you do not already have it.
-- A standard C toolchain (`cc` / `gcc` / `clang`) — Rust needs a linker
-  to compile native dependencies. Most Linux distributions ship one out
-  of the box; on macOS install Xcode Command Line Tools
-  (`xcode-select --install`); on Windows install the MSVC build tools.
+- The **Rust** toolchain, installed via **rustup** from
+  <https://rustup.rs>. `rustup` installs `rustc`, `cargo`, **and**
+  `rustup` together — Cargo is not a separate prerequisite. After
+  rustup finishes, open a **new terminal** or run
+  `source "$HOME/.cargo/env"` so `cargo --version` works in the
+  current shell. (This is the most-missed step on a fresh machine.)
+- **Rust 1.95 or newer** (`rustc --version`).
+- A standard C toolchain — Rust needs a linker to compile native
+  dependencies:
+  - **Linux:** most distributions ship `gcc` / `cc` out of the box.
+  - **macOS:** install Xcode Command Line Tools
+    (`xcode-select --install`).
+  - **Windows:** install Visual Studio Build Tools with the
+    "Desktop development with C++" workload.
 - Network access during installation so Cargo can download the
   published Rust dependencies. No source code or system data is sent
   out.
@@ -58,34 +103,73 @@ SafeAI Model Finder is installed and started from a terminal. You need:
 - The installed binary: `safeai-model-finder` (lands in `~/.cargo/bin`
   after the install step below).
 - A web browser on the same machine (Chrome, Firefox, Edge, Safari —
-  any modern browser). The browser is the interface only; no data leaves
-  the loopback connection.
+  any modern browser). The browser is the interface only; no data
+  leaves the loopback connection.
 
 **To manage and run local models**
 
-- An installed and running **Ollama** on the same machine. If Ollama is
-  not present, SafeAI Model Finder surfaces a clear message with the
-  download link from <https://ollama.com/download>. Network access is
-  needed when *you* initiate a model download through Ollama; SafeAI
-  Model Finder itself does not initiate any download without your
-  explicit confirmation.
+- An installed and running **Ollama** on the same machine. Download
+  from <https://ollama.com/download>. Network access is needed when
+  *you* initiate a model download through Ollama; SafeAI Model
+  Finder itself does not initiate any download without your explicit
+  confirmation.
 
-## Install
+## Install from source
+
+This is the path most users will take — installing SafeAI Model Finder
+to `~/.cargo/bin` straight from the public GitHub repository.
 
 ```bash
 cargo install --git https://github.com/fabiofurlano/SafeAI-Model-Finder --locked
 ```
 
-The `--locked` flag pins every dependency to the exact versions recorded
-in the in-repo `Cargo.lock` for a reproducible, deterministic install.
-The install places a single binary named `safeai-model-finder` in
-`~/.cargo/bin` (which Cargo/Rustup already puts on your `PATH`).
+The `--locked` flag pins every dependency to the exact versions
+recorded in the in-repo `Cargo.lock` for a reproducible, deterministic
+install. The install places a single binary named `safeai-model-finder`
+in `~/.cargo/bin`.
+
+**On a freshly rustup-installed shell**, first run:
+
+```bash
+source "$HOME/.cargo/env"
+```
+
+or simply open a new terminal window, then re-run the `cargo install`
+command.
 
 To uninstall:
 
 ```bash
 cargo uninstall safeai-model-finder
 ```
+
+---
+
+## Install with an AI agent
+
+If setting up a terminal tool from scratch is not your thing, you can
+hand the installation to a capable coding/computer agent with terminal
+access (ChatGPT Codex, Claude Code, Cline, Cursor agent, OpenCode, or
+similar) by copying one of the prompts below and pasting it into the
+agent. The prompts tell the agent exactly what to check, what to
+install, what **not** to touch (your existing Ollama models, your
+existing Ollama install, your existing toolchains), and how to verify
+that everything works at the end.
+
+Pick the prompt for your operating system:
+
+- [Linux](docs/agent-install/INSTALL-LINUX.md) — proven end-to-end on
+  a fresh Linux install (Vast.ai KDE VM, RTX 3060).
+- [macOS](docs/agent-install/INSTALL-MACOS.md)
+- [Windows](docs/agent-install/INSTALL-WINDOWS.md)
+
+If something is misbehaving and you would rather not troubleshoot by
+hand, copy the troubleshooting prompt instead:
+
+- [Troubleshooting](docs/agent-install/TROUBLESHOOT.md)
+
+The agent must always ask you before deleting models, reinstalling
+Ollama, or replacing an existing toolchain.
 
 ---
 
@@ -175,6 +259,57 @@ synchronisation.
   model directory, so it disappears from SafeAI Desktop and SafeAI
   Office too. This is normal Ollama behaviour — not a SafeAI Model
   Finder action against those apps.
+
+## Troubleshooting
+
+If something doesn't work, walk through this short list in order. Each
+entry tells you what to check, what almost always fixes it, and where to
+get help.
+
+**`cargo: command not found` after installing rustup.**
+This is the most common mistake on a fresh machine. `rustup` puts
+Cargo in `~/.cargo/bin`, but the current shell may not have that
+directory in `PATH` yet. Open a new terminal, or in the current
+shell run:
+```bash
+source "$HOME/.cargo/env"
+cargo --version
+```
+
+**SafeAI Model Finder shows "Ollama not running".**
+Install Ollama from <https://ollama.com/download> if it isn't there, or
+start the service if it's installed but stopped. Once `ollama serve`
+is responding on the loopback, Model Finder will detect it on the next
+relauch.
+
+**Model can be listed in Ollama but Model Finder shows a readiness-test
+timeout.**
+Verify the model is actually usable first:
+```bash
+ollama list
+ollama run <model-name> "hello"
+```
+If both succeed, the model is healthy and the timeout was a Model
+Finder probe miss — no need to re-download. Don't redownload unless
+the model is genuinely missing from `ollama list`.
+
+**Browser shows `Connection refused` when starting Model Finder.**
+Make sure Ollama is running and reachable on `127.0.0.1:11434`. The
+`Connection refused` error in Model Finder normally means Ollama isn't
+there yet.
+
+**GPU isn't detected on Linux.**
+Check that the official Ollama installer (which sets up the bundled
+GPU runtime) ran successfully. If you installed Ollama from a
+distribution package, GPU support may be missing.
+
+**`cargo install` failed partway through.**
+Re-run the same command. `cargo install` is resumable: only the
+unbuilt crates will be compiled next time.
+
+If you would rather not troubleshoot by hand, copy the
+[Troubleshooting prompt](docs/agent-install/TROUBLESHOOT.md) into a
+coding/computer agent and let it drive the diagnosis.
 
 ## Acknowledgements
 

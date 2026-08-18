@@ -1,7 +1,7 @@
 # SafeAI Model Finder
 
 <p align="center">
-  <a href="https://ai-insider.site/"><img src="assets/safeai-model-finder-logo.png" alt="SafeAI Model Finder logo" width="160" /></a>
+  <a href="https://ai-insider.site/"><img src="assets/safeai-model-finder-logo.png" alt="Logo di SafeAI Model Finder" width="160" /></a>
 </p>
 
 <p align="center"><a href="https://ai-insider.site/">ai-insider.site</a></p>
@@ -38,27 +38,75 @@ informazione sul tuo computer esce dalla macchina.
   un token di sessione generato a ogni avvio su tutti gli endpoint che
   modificano lo stato, e non ricade mai su un bind pubblico.
 
+## Avvio rapido
+
+Per partire servono solo due cose: **Ollama** (già installato e in
+esecuzione) e **SafeAI Model Finder** stesso.
+
+1. **Assicurati che Ollama sia installato e in esecuzione.**
+   Scaricalo da <https://ollama.com/download> per la tua piattaforma.
+   SafeAI Model Finder gestisce i modelli tramite la tua installazione
+   locale di Ollama — se Ollama manca o è fermo, lo strumento mostrerà
+   "Ollama not running" e gli scaricamenti falliranno con
+   `Connection refused`. SafeAI Model Finder non include né sostituisce
+   Ollama; i modelli che hai già oggi restano dove sono.
+
+2. **Installa SafeAI Model Finder dal terminale** (una sola riga):
+
+   ```bash
+   cargo install --git https://github.com/fabiofurlano/SafeAI-Model-Finder --locked
+   ```
+
+3. **Avvialo**:
+
+   ```bash
+   safeai-model-finder
+   ```
+
+   Si apre una scheda del browser a `http://127.0.0.1:8787/` (o su
+   un'altra porta libera di loopback se 8787 è occupata), l'interfaccia
+   rileva il tuo hardware, mostra i modelli già presenti nel tuo Ollama
+   e ti permette di trovare, sfogliare e scaricarne di nuovi.
+
+Se il setup da terminale non fa per te, passa a
+[Installazione con un agente AI](#installazione-con-un-agente-ai):
+trovi un prompt di installazione pronto da copiare per ChatGPT Codex,
+Claude Code, Cline, Cursor agent, OpenCode o qualsiasi altro agente
+di coding/computer con accesso al terminale.
+
+Se qualcosa non funziona, vedi
+[Risoluzione problemi](#risoluzione-problemi).
+
 ## Requisiti
 
 SafeAI Model Finder si installa e si avvia da terminale. Ti serve:
 
 **Per installare lo strumento (una tantum)**
 
-- Una toolchain **Rust** funzionante (Cargo), `rustc` 1.95 o più recente.
-  Installa da <https://rustup.rs> se non ce l'hai già.
-- Una toolchain C standard (`cc` / `gcc` / `clang`): Rust ha bisogno di un
-  linker per compilare le dipendenze native. La maggior parte delle
-  distribuzioni Linux la fornisce di serie; su macOS installa gli Xcode
-  Command Line Tools (`xcode-select --install`); su Windows installa
-  gli strumenti di build MSVC.
+- La toolchain **Rust**, installata tramite **rustup** da
+  <https://rustup.rs>. `rustup` installa insieme `rustc`, `cargo` e
+  `rustup` — Cargo **non** è un prerequisito separato. Dopo che
+  rustup ha finito, apri un **nuovo terminale** oppure esegui
+  `source "$HOME/.cargo/env"` così `cargo --version` funziona nella
+  shell corrente. (Questo è il passaggio che salta più spesso su una
+  macchina nuova.)
+- **Rust 1.95 o più recente** (`rustc --version`).
+- Una toolchain C standard — Rust ha bisogno di un linker per compilare
+  le dipendenze native:
+  - **Linux:** la maggior parte delle distribuzioni include `gcc` /
+    `cc` di serie.
+  - **macOS:** installa gli Xcode Command Line Tools
+    (`xcode-select --install`).
+  - **Windows:** installa Visual Studio Build Tools con il carico di
+    lavoro "Sviluppo desktop con C++".
 - Accesso alla rete durante l'installazione, così Cargo può scaricare
   le dipendenze Rust pubblicate. Nessun codice sorgente o dato di
   sistema viene inviato fuori.
 
 **Per avviare SafeAI Model Finder**
 
-- Il binario installato: `safeai-model-finder` (finisce in `~/.cargo/bin`
-  dopo il passo di installazione qui sotto).
+- Il binario installato: `safeai-model-finder` (finisce in
+  `~/.cargo/bin` dopo il passo di installazione qui sotto).
 - Un browser web sulla stessa macchina (Chrome, Firefox, Edge, Safari:
   qualsiasi browser moderno). Il browser è solo l'interfaccia; nessun
   dato lascia la connessione di loopback.
@@ -66,14 +114,16 @@ SafeAI Model Finder si installa e si avvia da terminale. Ti serve:
 **Per gestire ed eseguire i modelli locali**
 
 - Un'istanza di **Ollama** installata e in esecuzione sulla stessa
-  macchina. Se Ollama non è presente, SafeAI Model Finder mostra un
-  messaggio chiaro con il link per scaricarlo da
-  <https://ollama.com/download>. L'accesso alla rete è necessario quando
-  *tu* inizi uno scaricamento di un modello tramite Ollama; SafeAI
-  Model Finder di per sé non avvia nessuno scaricamento senza la tua
-  conferma esplicita.
+  macchina. Scaricala da <https://ollama.com/download>. L'accesso alla
+  rete è necessario quando *tu* inizi uno scaricamento di un modello
+  tramite Ollama; SafeAI Model Finder di per sé non avvia nessuno
+  scaricamento senza la tua conferma esplicita.
 
-## Installazione
+## Installazione da sorgente
+
+Questo è il percorso che la maggior parte degli utenti seguirà —
+installare SafeAI Model Finder in `~/.cargo/bin` direttamente dal
+repository GitHub pubblico.
 
 ```bash
 cargo install --git https://github.com/fabiofurlano/SafeAI-Model-Finder --locked
@@ -82,14 +132,50 @@ cargo install --git https://github.com/fabiofurlano/SafeAI-Model-Finder --locked
 Il flag `--locked` blocca ogni dipendenza alle versioni esatte registrate
 nel `Cargo.lock` presente nel repo, per un'installazione riproducibile e
 deterministica. L'installazione mette un singolo binario di nome
-`safeai-model-finder` in `~/.cargo/bin` (che Cargo/Rustup ha già sul
-tuo `$PATH`).
+`safeai-model-finder` in `~/.cargo/bin`.
+
+**In una shell in cui rustup è appena stato installato**, esegui prima:
+
+```bash
+source "$HOME/.cargo/env"
+```
+
+oppure apri una nuova finestra del terminale, poi rilancia il comando
+`cargo install`.
 
 Per disinstallare:
 
 ```bash
 cargo uninstall safeai-model-finder
 ```
+
+---
+
+## Installazione con un agente AI
+
+Se installare uno strumento da terminale da zero non è il tuo forte,
+puoi affidare l'installazione a un agente di coding/computer capace
+con accesso al terminale (ChatGPT Codex, Claude Code, Cline, Cursor
+agent, OpenCode o simili) copiando uno dei prompt qui sotto e
+incollandolo nell'agente. I prompt dicono esattamente all'agente cosa
+controllare, cosa installare, cosa **non** toccare (i tuoi modelli
+Ollama esistenti, la tua installazione Ollama esistente, le tue
+toolchain esistenti) e come verificare che tutto funzioni alla fine.
+
+Scegli il prompt per il tuo sistema operativo:
+
+- [Linux](docs/agent-install/INSTALL-LINUX.md) — provato end-to-end
+  su un'installazione Linux nuova (VM Vast.ai con KDE, RTX 3060).
+- [macOS](docs/agent-install/INSTALL-MACOS.md)
+- [Windows](docs/agent-install/INSTALL-WINDOWS.md)
+
+Se qualcosa si comporta male e preferisci non mettere mano al terminale,
+copia invece il prompt di risoluzione problemi:
+
+- [Risoluzione problemi](docs/agent-install/TROUBLESHOOT.md)
+
+L'agente deve sempre chiederti conferma prima di cancellare modelli,
+reinstallare Ollama o sostituire una toolchain esistente.
 
 ---
 
@@ -184,6 +270,58 @@ extra.
   directory dei modelli di Ollama, quindi scompare anche da SafeAI
   Desktop e SafeAI Office. È il normale comportamento di Ollama — non
   un'azione di SafeAI Model Finder verso quelle applicazioni.
+
+## Risoluzione problemi
+
+Se qualcosa non funziona, scorri questo breve elenco nell'ordine
+indicato. Ogni voce spiega cosa controllare, cosa di solito risolve
+e dove trovare aiuto.
+
+**`cargo: command not found` dopo aver installato rustup.**
+È l'errore più comune su una macchina nuova. `rustup` mette Cargo in
+`~/.cargo/bin`, ma la shell corrente potrebbe non avere ancora quella
+directory in `PATH`. Apri un nuovo terminale, oppure nella shell
+corrente esegui:
+```bash
+source "$HOME/.cargo/env"
+cargo --version
+```
+
+**SafeAI Model Finder mostra "Ollama not running".**
+Installa Ollama da <https://ollama.com/download> se non c'è, oppure
+avvia il servizio se è installato ma fermo. Una volta che `ollama serve`
+risponde sul loopback, Model Finder lo rileverà al prossimo riavvio.
+
+**Il modello è elencato in Ollama ma Model Finder mostra un timeout
+del test di prontezza.**
+Verifica prima che il modello sia effettivamente utilizzabile:
+```bash
+ollama list
+ollama run <nome-modello> "ciao"
+```
+Se entrambi vanno a buon fine, il modello è sano e il timeout era un
+mancato rilevamento di Model Finder — non serve riscaricarlo. Non
+riscaricare a meno che il modello non sia davvero assente da
+`ollama list`.
+
+**Il browser mostra `Connection refused` all'avvio di Model Finder.**
+Assicurati che Ollama sia in esecuzione e raggiungibile su
+`127.0.0.1:11434`. L'errore `Connection refused` in Model Finder di
+solito significa che Ollama non c'è ancora.
+
+**La GPU non viene rilevata su Linux.**
+Controlla che l'installer ufficiale di Ollama (che configura il
+runtime GPU in bundle) sia andato a buon fine. Se hai installato Ollama
+da un pacchetto della distribuzione, il supporto GPU potrebbe
+mancare.
+
+**`cargo install` fallisce a metà.**
+Rilancia lo stesso comando. `cargo install` è riprendibile: solo le
+crate non ancora compilate verranno compilate la volta successiva.
+
+Se preferisci non mettere mano al terminale, copia il
+[prompt di risoluzione problemi](docs/agent-install/TROUBLESHOOT.md) in
+un agente di coding/computer e lascialo guidare la diagnosi.
 
 ## Riconoscimenti
 
