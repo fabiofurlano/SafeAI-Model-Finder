@@ -1,5 +1,11 @@
 # SafeAI Model Finder
 
+<p align="center">
+  <a href="https://safeai.example"><img src="assets/safeai-model-finder-logo.png" alt="SafeAI Model Finder logo" width="160" /></a>
+</p>
+
+<p align="center"><a href="https://safeai.example">safeai.example</a></p>
+
 Uno strumento gratuito, privato e completamente locale per il desktop che
 consiglia i migliori modelli Ollama per il tuo computer, li scarica in modo
 sicuro tramite la tua installazione locale di Ollama e li verifica sul
