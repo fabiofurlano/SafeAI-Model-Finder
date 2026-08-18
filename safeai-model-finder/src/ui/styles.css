@@ -149,11 +149,10 @@ body::before {
     flex: none;
     display: grid; place-items: center;
     border-radius: 10px;
-    background: linear-gradient(135deg, var(--accent), var(--accent-strong));
-    color: #fff;
+    overflow: hidden;
     box-shadow: var(--shadow-card);
 }
-.brand-mark svg { width: 18px; height: 18px; }
+.brand-mark img { width: 32px; height: 32px; display: block; }
 .brand-name { font-size: 1rem; font-weight: 700; letter-spacing: -0.01em; line-height: 1.2; }
 .brand-name em { display: block; font-style: normal; color: var(--text-muted); font-weight: 500; font-size: 0.82rem; }
 
@@ -249,6 +248,20 @@ body::before {
     gap: 10px;
     width: 100%;
 }
+
+.side-weblink {
+    display: inline-flex;
+    align-items: center;
+    align-self: flex-end;
+    gap: 4px;
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    text-decoration: none;
+    opacity: 0.72;
+    transition: opacity 0.15s ease, color 0.15s ease;
+}
+.side-weblink:hover, .side-weblink:focus-visible { opacity: 1; color: var(--accent); }
+.side-weblink .ext-arrow { font-size: 0.85em; line-height: 1; transform: translateY(-0.5px); }
 .icon-btn {
     width: 38px; height: 38px;
     flex: none;

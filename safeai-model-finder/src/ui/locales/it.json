@@ -7,6 +7,10 @@
     "name": "SafeAI",
     "finder": "Model Finder"
   },
+  "web": {
+    "link": "ai-insider.site",
+    "linkAria": "Apri il sito di SafeAI in una nuova scheda del browser"
+  },
   "nav": {
     "mainAria": "Navigazione principale",
     "overview": "Panoramica",
