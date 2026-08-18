@@ -85,17 +85,37 @@ deterministica. L'installazione mette un singolo binario di nome
 `safeai-model-finder` in `~/.cargo/bin` (che Cargo/Rustup ha già sul
 tuo `$PATH`).
 
-Per reinstallare l'ultima versione sopra a una precedente:
-
-```bash
-cargo install --git https://github.com/fabiofurlano/SafeAI-Model-Finder --locked --force
-```
-
 Per disinstallare:
 
 ```bash
 cargo uninstall safeai-model-finder
 ```
+
+---
+
+## Aggiornamento
+
+Non è necessario disinstallare SafeAI Model Finder prima di
+aggiornarlo. La stessa invocazione `cargo install --git … --locked
+--force` che installa il binario la prima volta sostituisce anche
+il comando già installato con l'ultima versione pubblicata nel
+repository GitHub pubblico:
+
+```bash
+cargo install --git https://github.com/fabiofurlano/SafeAI-Model-Finder --locked --force
+```
+
+- `--git …` recupera l'ultimo commit pubblico di `main`.
+- `--locked` blocca ogni dipendenza alle versioni esatte registrate
+  nel `Cargo.lock` presente nel repo, per una build riproducibile e
+  deterministica.
+- `--force` sovrascrive il binario `~/.cargo/bin/safeai-model-finder`
+  già presente senza che tu debba prima eseguire `cargo uninstall`.
+
+Le tue impostazioni, i modelli esistenti, i modelli già scaricati e
+l'ambiente Ollama locale non vengono toccati. Viene sostituito solo
+il binario. Una volta terminato il comando, ti basta rilanciare
+`safeai-model-finder`.
 
 ## Avvio
 
@@ -137,15 +157,33 @@ il traffico resta su `127.0.0.1`; nulla è esposto alla rete.
   3. Lo scaricamento del modello Ollama che confermi esplicitamente
      nell'interfaccia.
 
-## Compatibilità con SafeAI
+## Compatibilità con SafeAI Desktop e SafeAI Office
 
-SafeAI Model Finder gestisce i modelli tramite l'installazione locale di
-Ollama dell'utente. Ogni modello che scarica viene memorizzato nella
-stessa directory dei modelli di Ollama che qualsiasi altra applicazione
-locale che usa Ollama può vedere, inclusa l'applicazione SafeAI quando è
-configurata per puntare alla stessa istanza di Ollama. SafeAI Model
-Finder non modifica l'applicazione SafeAI, i suoi file o la sua
-configurazione; condivide solo lo store dei modelli di Ollama.
+SafeAI Model Finder, **SafeAI Desktop** e **SafeAI Office** possono
+condividere lo stesso ambiente Ollama locale. Quando le tre
+applicazioni sono configurate per usare la stessa istanza di Ollama
+sulla stessa macchina, ogni modello che SafeAI Model Finder scarica
+per te finisce nella normale directory dei modelli di Ollama ed è
+quindi visibile e utilizzabile anche da SafeAI Desktop e SafeAI
+Office, senza alcun passaggio, importazione o sincronizzazione
+extra.
+
+- SafeAI Model Finder **scrive solo** nella directory locale dei
+  modelli di Ollama. **Non** legge, scrive o modifica SafeAI Desktop,
+  SafeAI Office, né alcuno dei loro file, impostazioni o
+  configurazione.
+- Nessuna sincronizzazione in background. Nessun relay cloud.
+  Nessuna procedura guidata di import. La "condivisione" è il semplice
+  fatto che tutte e tre puntano alla stessa istanza locale di Ollama.
+- Se usi solo SafeAI Model Finder e non avvii mai SafeAI Desktop o
+  SafeAI Office, per te non cambia nulla. La compatibilità è puramente
+  additiva: lo stesso modello scaricato è utilizzabile da quelle app
+  quando le usi, senza alcuna azione aggiuntiva da parte di SafeAI
+  Model Finder.
+- Rimuovere un modello da SafeAI Model Finder lo rimuove dalla
+  directory dei modelli di Ollama, quindi scompare anche da SafeAI
+  Desktop e SafeAI Office. È il normale comportamento di Ollama — non
+  un'azione di SafeAI Model Finder verso quelle applicazioni.
 
 ## Riconoscimenti
 

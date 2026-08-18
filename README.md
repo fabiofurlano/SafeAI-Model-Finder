@@ -81,17 +81,35 @@ in the in-repo `Cargo.lock` for a reproducible, deterministic install.
 The install places a single binary named `safeai-model-finder` in
 `~/.cargo/bin` (which Cargo/Rustup already puts on your `PATH`).
 
-To re-install the latest version over a previous one:
-
-```bash
-cargo install --git https://github.com/fabiofurlano/SafeAI-Model-Finder --locked --force
-```
-
 To uninstall:
 
 ```bash
 cargo uninstall safeai-model-finder
 ```
+
+---
+
+## Update
+
+You do **not** need to uninstall SafeAI Model Finder before updating.
+The same `cargo install --git … --locked --force` invocation that
+installs the binary the first time also replaces the currently
+installed command with the latest version published in the public
+GitHub repository:
+
+```bash
+cargo install --git https://github.com/fabiofurlano/SafeAI-Model-Finder --locked --force
+```
+
+- `--git …` fetches the latest public `main` commit.
+- `--locked` pins every dependency to the exact versions recorded
+  in the in-repo `Cargo.lock` for a reproducible, deterministic build.
+- `--force` overwrites the existing `~/.cargo/bin/safeai-model-finder`
+  binary without you having to run `cargo uninstall` first.
+
+Your settings, your existing models, your downloaded models, and your
+Ollama environment are untouched. Only the binary itself is replaced.
+After the command finishes, just run `safeai-model-finder` again.
 
 ## Start
 
@@ -132,14 +150,31 @@ network.
   2. The local Ollama service on loopback during normal operation.
   3. The Ollama model download you explicitly confirm in the interface.
 
-## SafeAI compatibility
+## SafeAI Desktop and SafeAI Office
 
-SafeAI Model Finder manages models through the user's local Ollama
-installation. Any model it downloads is stored in the same Ollama model
-directory that any other local Ollama-aware application uses, including
-the SafeAI application where configured to point at the same Ollama
-instance. SafeAI Model Finder does not modify the SafeAI application, its
-files, or its configuration; it only shares the Ollama model store.
+SafeAI Model Finder, **SafeAI Desktop**, and **SafeAI Office** can all
+share one local Ollama environment. When the three are configured to
+talk to the same Ollama instance on the same machine, any model that
+SafeAI Model Finder downloads for you is placed in Ollama's normal
+model directory and is therefore visible and usable from SafeAI Desktop
+and SafeAI Office as well — without any extra step, import, or
+synchronisation.
+
+- SafeAI Model Finder **only** writes to your local Ollama model
+  directory. It does **not** read, write, or modify SafeAI Desktop,
+  SafeAI Office, or any of their files, settings, or configuration.
+- No background syncing. No cloud relay. No import wizard. The
+  "sharing" is the fact that all three apps point at the same local
+  Ollama instance.
+- If you only run SafeAI Model Finder and never start SafeAI Desktop or
+  SafeAI Office, nothing changes for you. The compatibility is purely
+  additive: the same downloaded model is discoverable by those apps
+  when you also use them, without any extra action from SafeAI Model
+  Finder.
+- Removing a model from SafeAI Model Finder removes it from Ollama's
+  model directory, so it disappears from SafeAI Desktop and SafeAI
+  Office too. This is normal Ollama behaviour — not a SafeAI Model
+  Finder action against those apps.
 
 ## Acknowledgements
 
