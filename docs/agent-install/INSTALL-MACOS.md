@@ -1,22 +1,30 @@
 # Install SafeAI Model Finder on macOS — with an AI agent
 
-> A ready-to-copy prompt for a capable coding/computer agent with terminal
-> access (ChatGPT Codex, Claude Code, Cline, Cursor agent, OpenCode, or
-> similar). The agent should walk the user through this checklist, do the
-> work, and report exactly what it changed.
+> **Project status: NOT YET VALIDATED on macOS.** This file is an
+> **informational draft**. The Linux install path
+> ([`INSTALL-LINUX.md`](INSTALL-LINUX.md)) is the only install path
+> proven end-to-end by this project. The macOS path described below
+> has not been independently recorded as a clean-machine success by
+> a Mac owner. The agent and the user must understand that going
+> through this prompt on macOS is best-effort, not a supported path,
+> until a Mac maintainer does that clean-machine proof and reports
+> back.
+>
+> If you only have macOS available, the **safest option** is to use a
+> Linux VM (Ubuntu / Fedora) instead and follow
+> [`INSTALL-LINUX.md`](INSTALL-LINUX.md).
+
+> A ready-to-copy prompt for a capable coding/computer agent with
+> terminal access (ChatGPT Codex, Claude Code, Cline, Cursor agent,
+> OpenCode, or similar). The agent should walk the user through this
+> checklist, do the work, and report exactly what it changed. The
+> agent must **start by telling the user that this prompt is an
+> unvalidated draft on this platform** and that the user can stop at
+> any time.
 >
 > This file is for **macOS** (any modern Intel or Apple-silicon
 > machine). If the agent detects a different OS, ask it to switch to
 > `INSTALL-LINUX.md` or `INSTALL-WINDOWS.md`.
-
-> **Important honesty disclosure.** The codebase is platform-agnostic
-> (no `#[cfg(target_os = …)]` paths in the install or runtime) and the
-> workspace targets Rust 2024 edition on every supported Rust target.
-> A fresh, end-to-end customer install proof on a clean macOS machine
-> has not yet been recorded alongside this docs milestone; the procedure
-> below assumes the same prerequisites as Linux, plus the Xcode Command
-> Line Tools that Rust on macOS requires. Please report your experience
-> (success or failure) so the docs can be sharpened.
 
 ## Goal
 

@@ -87,6 +87,10 @@ SafeAI Model Finder is installed and started from a terminal. You need:
   `source "$HOME/.cargo/env"` so `cargo --version` works in the
   current shell. (This is the most-missed step on a fresh machine.)
 - **Rust 1.95 or newer** (`rustc --version`).
+- The install path below has been **proven end-to-end on Linux**
+  only so far. macOS and Windows prompts in
+  [`docs/agent-install/`](docs/agent-install/) are best-effort
+  drafts pending independent validation on each platform.
 - A standard C toolchain — Rust needs a linker to compile native
   dependencies:
   - **Linux:** most distributions ship `gcc` / `cc` out of the box.
@@ -156,12 +160,37 @@ install, what **not** to touch (your existing Ollama models, your
 existing Ollama install, your existing toolchains), and how to verify
 that everything works at the end.
 
+**Platform support status** (what has actually been verified
+end-to-end on this project):
+
+- **Linux** — *proven*. The Linux install path has been validated
+  end-to-end on a fresh machine (Vast.ai KDE VM, RTX 3060) plus the
+  maintainer's Linux development host. This is the supported path.
+- **macOS** — *not yet validated*. The SafeAI Model Finder source
+  has `cfg(target_os = "macos")` blocks and the underlying
+  hardware-detection library runs on macOS, but the public
+  `cargo install --git …` install path has not been proven
+  end-to-end on a Mac yet. The macOS prompt below is provided as
+  an **informational draft** so a capable agent can attempt it
+  with you; treat its output as best-effort until a Mac owner
+  runs it on a clean machine and reports back.
+- **Windows** — *not yet validated*. Same situation: the source
+  accommodates Windows, but the public install path has not been
+  proven end-to-end on Windows. The Windows prompt is an
+  **informational draft** of the same kind.
+
+If you only have macOS or Windows available today and are not
+comfortable running an unproven install recipe through an AI agent,
+the safest path is to use a Linux machine (or VM) instead.
+
 Pick the prompt for your operating system:
 
-- [Linux](docs/agent-install/INSTALL-LINUX.md) — proven end-to-end on
-  a fresh Linux install (Vast.ai KDE VM, RTX 3060).
-- [macOS](docs/agent-install/INSTALL-MACOS.md)
-- [Windows](docs/agent-install/INSTALL-WINDOWS.md)
+- [Linux](docs/agent-install/INSTALL-LINUX.md) — proven end-to-end
+  on a fresh Linux install (Vast.ai KDE VM, RTX 3060).
+- [macOS](docs/agent-install/INSTALL-MACOS.md) — _informational
+  draft; not yet validated on a Mac by this project._
+- [Windows](docs/agent-install/INSTALL-WINDOWS.md) — _informational
+  draft; not yet validated on Windows by this project._
 
 If something is misbehaving and you would rather not troubleshoot by
 hand, copy the troubleshooting prompt instead:

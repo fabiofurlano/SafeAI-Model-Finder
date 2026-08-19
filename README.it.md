@@ -91,6 +91,11 @@ SafeAI Model Finder si installa e si avvia da terminale. Ti serve:
   shell corrente. (Questo è il passaggio che salta più spesso su una
   macchina nuova.)
 - **Rust 1.95 o più recente** (`rustc --version`).
+- Il percorso di installazione qui sotto è stato **provato
+  end-to-end solo su Linux** finora. I prompt macOS e Windows in
+  [`docs/agent-install/`](docs/agent-install/) sono bozze
+  best-effort in attesa di validazione indipendente su ciascuna
+  piattaforma.
 - Una toolchain C standard — Rust ha bisogno di un linker per compilare
   le dipendenze native:
   - **Linux:** la maggior parte delle distribuzioni include `gcc` /
@@ -162,12 +167,40 @@ controllare, cosa installare, cosa **non** toccare (i tuoi modelli
 Ollama esistenti, la tua installazione Ollama esistente, le tue
 toolchain esistenti) e come verificare che tutto funzioni alla fine.
 
+**Stato del supporto per piattaforma** (cosa è stato verificato
+end-to-end in questo progetto):
+
+- **Linux** — *provato*. Il percorso di installazione Linux è stato
+  validato end-to-end su una macchina nuova (VM Vast.ai con KDE,
+  RTX 3060) e sulla macchina di sviluppo Linux del maintainer.
+  Questo è il percorso supportato.
+- **macOS** — *non ancora validato*. Il codice sorgente di SafeAI
+  Model Finder ha blocchi `cfg(target_os = "macos")` e la libreria
+  sottostante di rilevamento hardware gira su macOS, ma il
+  percorso pubblico `cargo install --git …` non è ancora stato
+  provato end-to-end su un Mac. Il prompt macOS qui sotto è
+  fornito come **bozza informativa** perché un agente capace
+  possa tentarlo con te; considera il suo output come
+  best-effort finché un utente Mac non lo esegue su una macchina
+  pulita e segnala l'esito.
+- **Windows** — *non ancora validato*. Stessa situazione: il
+  sorgente è compatibile con Windows, ma il percorso pubblico di
+  installazione non è ancora stato provato end-to-end su Windows.
+  Il prompt Windows è una **bozza informativa** dello stesso tipo.
+
+Se hai solo macOS o Windows a disposizione e non ti senti di
+eseguire una ricetta di installazione non ancora provata tramite
+un agente AI, il percorso più sicuro è usare una macchina Linux
+(o una VM Linux).
+
 Scegli il prompt per il tuo sistema operativo:
 
 - [Linux](docs/agent-install/INSTALL-LINUX.md) — provato end-to-end
   su un'installazione Linux nuova (VM Vast.ai con KDE, RTX 3060).
-- [macOS](docs/agent-install/INSTALL-MACOS.md)
-- [Windows](docs/agent-install/INSTALL-WINDOWS.md)
+- [macOS](docs/agent-install/INSTALL-MACOS.md) — _bozza
+  informativa; non ancora validata su un Mac da questo progetto._
+- [Windows](docs/agent-install/INSTALL-WINDOWS.md) — _bozza
+  informativa; non ancora validata su Windows da questo progetto._
 
 Se qualcosa si comporta male e preferisci non mettere mano al terminale,
 copia invece il prompt di risoluzione problemi:
