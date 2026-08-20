@@ -102,10 +102,10 @@ SafeAI Model Finder is installed and started from a terminal. You need:
     this is the tested path. It is **not VS Code**; it installs
     Microsoft's compiler/linker plus the Windows SDK that Rust
     needs. This one-time prerequisite step can take noticeably
-    longer than installing Model Finder itself. If Windows
-    recommends a restart afterwards, restart, then run
-    `rustup-init.exe` again if Rust itself did not finish
-    installing.
+    longer than installing Model Finder itself. When the Microsoft
+    installer finishes, return to rustup and continue the Rust
+    installation; a restart is only needed if Rust cannot continue
+    or the tools don't work afterwards.
 - Network access during installation so Cargo can download the
   published Rust dependencies. No source code or system data is sent
   out.
@@ -319,13 +319,13 @@ source "$HOME/.cargo/env"
 cargo --version
 ```
 
-**On Windows: `rustc`/`cargo` not recognized right after the Visual
-C++ prerequisites install.**
-Rust itself may not have finished installing yet — the Microsoft
-prerequisites are a separate first-time step. If Windows recommended
-a restart, restart, then run `rustup-init.exe` again. Afterwards open
-a **new** Command Prompt / PowerShell and verify with
-`rustc --version` and `cargo --version`.
+**On Windows: `rustc`/`cargo` not recognized after installing Rust.**
+Open a **new** Command Prompt / PowerShell and verify with
+`rustc --version` and `cargo --version`. If they still fail, re-run
+`rustup-init.exe`. Restart Windows only if Rust genuinely cannot
+continue or the tools remain unavailable — the Microsoft installer
+may *recommend* a restart, but in the tested clean install Rust
+completed without one.
 
 **On Windows: rustup asks about missing Visual C++ prerequisites.**
 Choose option 1, "Quick install via the Visual Studio Community

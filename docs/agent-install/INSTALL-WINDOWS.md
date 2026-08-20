@@ -1,14 +1,17 @@
 # Install SafeAI Model Finder on Windows — with an AI agent
 
-> **Project status: PROVEN on Windows.** This install path has been
-> validated end-to-end on a real fresh Windows machine (Vagon):
-> Rust/rustup installed from zero including the Visual C++
-> prerequisites, SafeAI Model Finder compiled and installed with the
-> public `cargo install` command, the browser UI launched, Ollama was
-> detected, and a small model (SmolLM2 135M) was downloaded and marked
-> ready through the UI. The macOS path
-> ([`INSTALL-MACOS.md`](INSTALL-MACOS.md)) remains an unvalidated
-> draft.
+> **Project status: PROVEN on Windows — final clean-machine proof.**
+> This install path has been validated end-to-end on a genuinely
+> fresh Windows machine (Vagon): Ollama installed first (network
+> exposure left OFF), Rust/rustup installed from zero including the
+> Visual C++ prerequisites (continuing in the same rustup session
+> without a Windows restart), SafeAI Model Finder compiled and
+> installed with the public `cargo install` command, the browser UI
+> launched, hardware was detected, and Ollama showed **"Ollama Ready /
+> 0 models"** automatically. A small model (SmolLM2 135M) was then
+> downloaded and marked ready through the UI on the same platform.
+> The macOS path ([`INSTALL-MACOS.md`](INSTALL-MACOS.md)) remains an
+> unvalidated draft.
 
 > A ready-to-copy prompt for a capable coding/computer agent with
 > terminal access (ChatGPT Codex, Claude Code, Cline, Cursor agent,
@@ -124,27 +127,38 @@ on a fresh Windows machine. Explain to the user explicitly:
 - this first-time prerequisite step may take **noticeably longer
   than installing Model Finder itself**.
 
-**If Windows recommends a restart** after the Microsoft
-prerequisites: restart. Then run `rustup-init.exe` **again** if Rust
-itself did not finish installing. Use the default Rust installation.
+**When the Microsoft prerequisite installer finishes:**
+
+- **do not restart Windows yet** — a restart is *not* automatically
+  required just because the Microsoft installer recommends one;
+- **return to the rustup terminal first**;
+- if rustup presents its installation choice again, choose the
+  normal/**default installation (option 1)** and let Rust finish —
+  this is the exact sequence proven on a clean Windows machine,
+  where Rust completed **without** a restart;
+- restart Windows **only** if rustup cannot continue, Windows
+  explicitly requires it, or `rustc`/`cargo` still fail afterwards.
 
 During rustup installation, the agent must confirm the host triple is
 either `x86_64-pc-windows-msvc` or `aarch64-pc-windows-msvc`.
 
-## Step 3 — New terminal and verification
+## Step 3 — Fresh terminal and verification
 
-Open a **new** Command Prompt / PowerShell (the old one will not see
-the new tools). Verify:
+After rustup finishes and its window closes, open a **new** Command
+Prompt / PowerShell (the old one will not see the new tools). Verify:
 
 ```powershell
 rustc --version
 cargo --version
 ```
 
+If both work, continue to Step 4.
+
 rustup normally registers `%USERPROFILE%\.cargo\bin` on the user
 `PATH` for new sessions. Do **not** tell normal users to manipulate
 `PATH` manually unless these commands still fail in a fresh
-terminal.
+terminal. Only if they fail: retry `rustup-init.exe`, try another
+new terminal, and restart Windows as the last resort.
 
 ## Step 4 — Install SafeAI Model Finder
 
@@ -230,18 +244,21 @@ Print back to the user:
 
 ## Windows troubleshooting (real issues seen in the field)
 
-**A. `rustc`/`cargo` not recognized immediately after the Visual C++
-prerequisite install.**
-Rust itself may not have finished installing — the Microsoft
-prerequisites are a separate first-time step. If Windows recommended
-a restart, restart, then run `rustup-init.exe` again. Open a **new**
-Command Prompt / PowerShell and verify `rustc --version` /
-`cargo --version`.
+**A. `rustc`/`cargo` not recognized after installing Rust.**
+Open a **new** Command Prompt / PowerShell and verify
+`rustc --version` / `cargo --version`. If they still fail, re-run
+`rustup-init.exe` (after the Visual C++ prerequisites it will simply
+continue the default installation). Restart Windows only if Rust
+genuinely cannot continue or the tools remain unavailable — in the
+clean-machine test Rust completed without a restart even though the
+Microsoft installer recommended one.
 
 **B. rustup shows the Visual C++ prerequisite prompt.**
 Option 1 ("Quick install via the Visual Studio Community installer")
 is the tested simple path. It is not VS Code; it installs the
-Microsoft compiler/linker and Windows SDK Rust needs.
+Microsoft compiler/linker and Windows SDK Rust needs. When it
+finishes, return to rustup and choose the default installation
+again — do not restart unless Rust cannot continue.
 
 **C. "Ollama not running".**
 Install or start Ollama. Leave "Expose Ollama to the network" OFF

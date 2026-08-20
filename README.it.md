@@ -108,8 +108,9 @@ SafeAI Model Finder si installa e si avvia da terminale. Ti serve:
     **Non è VS Code**: installa compilatore/linker Microsoft e il
     Windows SDK che servono a Rust. Questo passaggio una tantum può
     richiedere molto più tempo dell'installazione di Model Finder
-    stesso. Se Windows consiglia un riavvio, riavvia, poi rilancia
-    `rustup-init.exe` se Rust non aveva finito di installarsi.
+    stesso. Quando l'installer Microsoft termina, torna a rustup e
+    prosegui l'installazione di Rust; il riavvio serve solo se Rust
+    non può continuare o se gli strumenti non funzionano dopo.
 - Accesso alla rete durante l'installazione, così Cargo può scaricare
   le dipendenze Rust pubblicate. Nessun codice sorgente o dato di
   sistema viene inviato fuori.
@@ -331,13 +332,14 @@ source "$HOME/.cargo/env"
 cargo --version
 ```
 
-**Su Windows: `rustc`/`cargo` non riconosciuti subito dopo
-l'installazione dei prerequisiti Visual C++.**
-Rust stesso potrebbe non aver finito di installarsi — i prerequisiti
-Microsoft sono un passaggio separato da fare una sola volta. Se
-Windows ha consigliato un riavvio, riavvia, poi rilancia
-`rustup-init.exe`. Apri poi un **nuovo** Command Prompt/PowerShell e
-verifica con `rustc --version` e `cargo --version`.
+**Su Windows: `rustc`/`cargo` non riconosciuti dopo l'installazione
+di Rust.**
+Apri un **nuovo** Command Prompt/PowerShell e verifica con
+`rustc --version` e `cargo --version`. Se falliscono ancora,
+rilancia `rustup-init.exe`. Riavvia Windows solo se Rust davvero
+non riesce a continuare o se gli strumenti restano non disponibili
+— l'installer Microsoft può *consigliare* un riavvio, ma
+nell'installazione pulita provata Rust è stato completato senza.
 
 **Su Windows: rustup segnala i prerequisiti Visual C++ mancanti.**
 Scegli l'opzione 1, "Quick install via the Visual Studio Community
