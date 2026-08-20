@@ -92,26 +92,34 @@ SafeAI Model Finder si installa e si avvia da terminale. Ti serve:
   macchina nuova.)
 - **Rust 1.95 o più recente** (`rustc --version`).
 - Il percorso di installazione qui sotto è stato **provato
-  end-to-end solo su Linux** finora. I prompt macOS e Windows in
-  [`docs/agent-install/`](docs/agent-install/) sono bozze
-  best-effort in attesa di validazione indipendente su ciascuna
-  piattaforma.
+  end-to-end su Linux e su Windows** (una macchina Windows nuova
+  reale). Il prompt macOS in
+  [`docs/agent-install/`](docs/agent-install/) resta una bozza
+  best-effort in attesa di validazione indipendente.
 - Una toolchain C standard — Rust ha bisogno di un linker per compilare
   le dipendenze native:
   - **Linux:** la maggior parte delle distribuzioni include `gcc` /
     `cc` di serie.
   - **macOS:** installa gli Xcode Command Line Tools
     (`xcode-select --install`).
-  - **Windows:** installa Visual Studio Build Tools con il carico di
-    lavoro "Sviluppo desktop con C++".
+  - **Windows:** se l'installer di Rust segnala i prerequisiti
+    Visual C++ mancanti, scegli la sua opzione **"Quick install via
+    the Visual Studio Community installer"** — è il percorso provato.
+    **Non è VS Code**: installa compilatore/linker Microsoft e il
+    Windows SDK che servono a Rust. Questo passaggio una tantum può
+    richiedere molto più tempo dell'installazione di Model Finder
+    stesso. Se Windows consiglia un riavvio, riavvia, poi rilancia
+    `rustup-init.exe` se Rust non aveva finito di installarsi.
 - Accesso alla rete durante l'installazione, così Cargo può scaricare
   le dipendenze Rust pubblicate. Nessun codice sorgente o dato di
   sistema viene inviato fuori.
 
 **Per avviare SafeAI Model Finder**
 
-- Il binario installato: `safeai-model-finder` (finisce in
-  `~/.cargo/bin` dopo il passo di installazione qui sotto).
+- Il binario installato: `safeai-model-finder` (finisce nella
+  directory bin di Cargo — `~/.cargo/bin` su Linux/macOS,
+  `%USERPROFILE%\.cargo\bin` su Windows — dopo il passo di
+  installazione qui sotto).
 - Un browser web sulla stessa macchina (Chrome, Firefox, Edge, Safari:
   qualsiasi browser moderno). Il browser è solo l'interfaccia; nessun
   dato lascia la connessione di loopback.
@@ -127,8 +135,9 @@ SafeAI Model Finder si installa e si avvia da terminale. Ti serve:
 ## Installazione da sorgente
 
 Questo è il percorso che la maggior parte degli utenti seguirà —
-installare SafeAI Model Finder in `~/.cargo/bin` direttamente dal
-repository GitHub pubblico.
+installare SafeAI Model Finder direttamente dal repository GitHub
+pubblico nella directory bin di Cargo (`~/.cargo/bin` su Linux/macOS,
+`%USERPROFILE%\.cargo\bin` su Windows).
 
 ```bash
 cargo install --git https://github.com/fabiofurlano/SafeAI-Model-Finder --locked
@@ -137,7 +146,8 @@ cargo install --git https://github.com/fabiofurlano/SafeAI-Model-Finder --locked
 Il flag `--locked` blocca ogni dipendenza alle versioni esatte registrate
 nel `Cargo.lock` presente nel repo, per un'installazione riproducibile e
 deterministica. L'installazione mette un singolo binario di nome
-`safeai-model-finder` in `~/.cargo/bin`.
+`safeai-model-finder` nella directory bin di Cargo
+(`safeai-model-finder.exe` su Windows).
 
 **In una shell in cui rustup è appena stato installato**, esegui prima:
 
@@ -173,7 +183,6 @@ end-to-end in questo progetto):
 - **Linux** — *provato*. Il percorso di installazione Linux è stato
   validato end-to-end su una macchina nuova (VM Vast.ai con KDE,
   RTX 3060) e sulla macchina di sviluppo Linux del maintainer.
-  Questo è il percorso supportato.
 - **macOS** — *non ancora validato*. Il codice sorgente di SafeAI
   Model Finder ha blocchi `cfg(target_os = "macos")` e la libreria
   sottostante di rilevamento hardware gira su macOS, ma il
@@ -183,15 +192,17 @@ end-to-end in questo progetto):
   possa tentarlo con te; considera il suo output come
   best-effort finché un utente Mac non lo esegue su una macchina
   pulita e segnala l'esito.
-- **Windows** — *non ancora validato*. Stessa situazione: il
-  sorgente è compatibile con Windows, ma il percorso pubblico di
-  installazione non è ancora stato provato end-to-end su Windows.
-  Il prompt Windows è una **bozza informativa** dello stesso tipo.
+- **Windows** — *provato*. Il percorso di installazione pubblico
+  (`cargo install --git … --locked`) è stato validato end-to-end
+  su una macchina Windows nuova reale (Vagon): Rust/rustup
+  installati da zero inclusi i prerequisiti Visual C++, Model
+  Finder compilato e installato, interfaccia browser avviata,
+  Ollama rilevato e un modello piccolo (SmolLM2 135M) scaricato e
+  marcato pronto tramite l'interfaccia.
 
-Se hai solo macOS o Windows a disposizione e non ti senti di
-eseguire una ricetta di installazione non ancora provata tramite
-un agente AI, il percorso più sicuro è usare una macchina Linux
-(o una VM Linux).
+Se hai solo macOS a disposizione e non ti senti di eseguire una
+ricetta di installazione non ancora provata tramite un agente AI,
+il percorso più sicuro è usare una macchina Linux (o una VM Linux).
 
 Scegli il prompt per il tuo sistema operativo:
 
@@ -199,8 +210,8 @@ Scegli il prompt per il tuo sistema operativo:
   su un'installazione Linux nuova (VM Vast.ai con KDE, RTX 3060).
 - [macOS](docs/agent-install/INSTALL-MACOS.md) — _bozza
   informativa; non ancora validata su un Mac da questo progetto._
-- [Windows](docs/agent-install/INSTALL-WINDOWS.md) — _bozza
-  informativa; non ancora validata su Windows da questo progetto._
+- [Windows](docs/agent-install/INSTALL-WINDOWS.md) — provato
+  end-to-end su una macchina Windows nuova reale (Vagon).
 
 Se qualcosa si comporta male e preferisci non mettere mano al terminale,
 copia invece il prompt di risoluzione problemi:
@@ -228,8 +239,8 @@ cargo install --git https://github.com/fabiofurlano/SafeAI-Model-Finder --locked
 - `--locked` blocca ogni dipendenza alle versioni esatte registrate
   nel `Cargo.lock` presente nel repo, per una build riproducibile e
   deterministica.
-- `--force` sovrascrive il binario `~/.cargo/bin/safeai-model-finder`
-  già presente senza che tu debba prima eseguire `cargo uninstall`.
+- `--force` sovrascrive il binario `safeai-model-finder` già
+  installato senza che tu debba prima eseguire `cargo uninstall`.
 
 Le tue impostazioni, i modelli esistenti, i modelli già scaricati e
 l'ambiente Ollama locale non vengono toccati. Viene sostituito solo
@@ -311,19 +322,41 @@ indicato. Ogni voce spiega cosa controllare, cosa di solito risolve
 e dove trovare aiuto.
 
 **`cargo: command not found` dopo aver installato rustup.**
-È l'errore più comune su una macchina nuova. `rustup` mette Cargo in
-`~/.cargo/bin`, ma la shell corrente potrebbe non avere ancora quella
-directory in `PATH`. Apri un nuovo terminale, oppure nella shell
-corrente esegui:
+È l'errore più comune su una macchina nuova. `rustup` mette Cargo
+nella directory bin di Cargo, ma la shell corrente potrebbe non
+avere ancora quella directory in `PATH`. Apri un nuovo terminale,
+oppure nella shell corrente esegui:
 ```bash
 source "$HOME/.cargo/env"
 cargo --version
 ```
 
+**Su Windows: `rustc`/`cargo` non riconosciuti subito dopo
+l'installazione dei prerequisiti Visual C++.**
+Rust stesso potrebbe non aver finito di installarsi — i prerequisiti
+Microsoft sono un passaggio separato da fare una sola volta. Se
+Windows ha consigliato un riavvio, riavvia, poi rilancia
+`rustup-init.exe`. Apri poi un **nuovo** Command Prompt/PowerShell e
+verifica con `rustc --version` e `cargo --version`.
+
+**Su Windows: rustup segnala i prerequisiti Visual C++ mancanti.**
+Scegli l'opzione 1, "Quick install via the Visual Studio Community
+installer" — il percorso provato. Non è VS Code: installa
+compilatore/linker Microsoft e Windows SDK che servono a Rust, e
+può richiedere molto più tempo dell'installazione di Model Finder
+stesso.
+
+**`cargo install` stampa warning di compilazione.**
+I warning non sono fallimenti dell'installazione. L'installazione è
+riuscita solo se Cargo termina con righe come `Finished release
+profile` e `Installed package safeai-model-finder`.
+
 **SafeAI Model Finder mostra "Ollama not running".**
 Installa Ollama da <https://ollama.com/download> se non c'è, oppure
-avvia il servizio se è installato ma fermo. Una volta che `ollama serve`
-risponde sul loopback, Model Finder lo rileverà al prossimo riavvio.
+avvia il servizio se è installato ma fermo. Per il flusso locale/
+privato di SafeAI, lascia SPENTA l'opzione "Expose Ollama to the
+network" — non serve. Una volta che Ollama risponde sul loopback,
+aggiorna o riavvia Model Finder e verrà rilevato.
 
 **Il modello è elencato in Ollama ma Model Finder mostra un timeout
 del test di prontezza.**

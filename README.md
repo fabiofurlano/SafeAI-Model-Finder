@@ -87,25 +87,35 @@ SafeAI Model Finder is installed and started from a terminal. You need:
   `source "$HOME/.cargo/env"` so `cargo --version` works in the
   current shell. (This is the most-missed step on a fresh machine.)
 - **Rust 1.95 or newer** (`rustc --version`).
-- The install path below has been **proven end-to-end on Linux**
-  only so far. macOS and Windows prompts in
-  [`docs/agent-install/`](docs/agent-install/) are best-effort
-  drafts pending independent validation on each platform.
+- The install path below has been **proven end-to-end on Linux and
+  on Windows** (a real fresh Windows machine). The macOS prompt in
+  [`docs/agent-install/`](docs/agent-install/) remains a best-effort
+  draft pending independent validation.
 - A standard C toolchain — Rust needs a linker to compile native
   dependencies:
   - **Linux:** most distributions ship `gcc` / `cc` out of the box.
   - **macOS:** install Xcode Command Line Tools
     (`xcode-select --install`).
-  - **Windows:** install Visual Studio Build Tools with the
-    "Desktop development with C++" workload.
+  - **Windows:** if Rust's installer reports missing Visual C++
+    prerequisites, choose its option
+    **"Quick install via the Visual Studio Community installer"** —
+    this is the tested path. It is **not VS Code**; it installs
+    Microsoft's compiler/linker plus the Windows SDK that Rust
+    needs. This one-time prerequisite step can take noticeably
+    longer than installing Model Finder itself. If Windows
+    recommends a restart afterwards, restart, then run
+    `rustup-init.exe` again if Rust itself did not finish
+    installing.
 - Network access during installation so Cargo can download the
   published Rust dependencies. No source code or system data is sent
   out.
 
 **To start SafeAI Model Finder**
 
-- The installed binary: `safeai-model-finder` (lands in `~/.cargo/bin`
-  after the install step below).
+- The installed binary: `safeai-model-finder` (lands in Cargo's bin
+  directory — `~/.cargo/bin` on Linux/macOS,
+  `%USERPROFILE%\.cargo\bin` on Windows — after the install step
+  below).
 - A web browser on the same machine (Chrome, Firefox, Edge, Safari —
   any modern browser). The browser is the interface only; no data
   leaves the loopback connection.
@@ -121,7 +131,8 @@ SafeAI Model Finder is installed and started from a terminal. You need:
 ## Install from source
 
 This is the path most users will take — installing SafeAI Model Finder
-to `~/.cargo/bin` straight from the public GitHub repository.
+straight from the public GitHub repository into Cargo's bin directory
+(`~/.cargo/bin` on Linux/macOS, `%USERPROFILE%\.cargo\bin` on Windows).
 
 ```bash
 cargo install --git https://github.com/fabiofurlano/SafeAI-Model-Finder --locked
@@ -130,7 +141,7 @@ cargo install --git https://github.com/fabiofurlano/SafeAI-Model-Finder --locked
 The `--locked` flag pins every dependency to the exact versions
 recorded in the in-repo `Cargo.lock` for a reproducible, deterministic
 install. The install places a single binary named `safeai-model-finder`
-in `~/.cargo/bin`.
+in Cargo's bin directory (`safeai-model-finder.exe` on Windows).
 
 **On a freshly rustup-installed shell**, first run:
 
@@ -165,7 +176,7 @@ end-to-end on this project):
 
 - **Linux** — *proven*. The Linux install path has been validated
   end-to-end on a fresh machine (Vast.ai KDE VM, RTX 3060) plus the
-  maintainer's Linux development host. This is the supported path.
+  maintainer's Linux development host.
 - **macOS** — *not yet validated*. The SafeAI Model Finder source
   has `cfg(target_os = "macos")` blocks and the underlying
   hardware-detection library runs on macOS, but the public
@@ -174,14 +185,17 @@ end-to-end on this project):
   an **informational draft** so a capable agent can attempt it
   with you; treat its output as best-effort until a Mac owner
   runs it on a clean machine and reports back.
-- **Windows** — *not yet validated*. Same situation: the source
-  accommodates Windows, but the public install path has not been
-  proven end-to-end on Windows. The Windows prompt is an
-  **informational draft** of the same kind.
+- **Windows** — *proven*. The public install path
+  (`cargo install --git … --locked`) has been validated end-to-end
+  on a real fresh Windows machine (Vagon): Rust/rustup installed
+  from zero including the Visual C++ prerequisites, Model Finder
+  compiled and installed, the browser UI launched, Ollama was
+  detected, and a small model (SmolLM2 135M) was downloaded and
+  marked ready through the UI.
 
-If you only have macOS or Windows available today and are not
-comfortable running an unproven install recipe through an AI agent,
-the safest path is to use a Linux machine (or VM) instead.
+If you only have macOS available today and are not comfortable
+running an unproven install recipe through an AI agent, the
+safest path is to use a Linux machine (or VM) instead.
 
 Pick the prompt for your operating system:
 
@@ -189,8 +203,8 @@ Pick the prompt for your operating system:
   on a fresh Linux install (Vast.ai KDE VM, RTX 3060).
 - [macOS](docs/agent-install/INSTALL-MACOS.md) — _informational
   draft; not yet validated on a Mac by this project._
-- [Windows](docs/agent-install/INSTALL-WINDOWS.md) — _informational
-  draft; not yet validated on Windows by this project._
+- [Windows](docs/agent-install/INSTALL-WINDOWS.md) — proven
+  end-to-end on a real fresh Windows machine (Vagon).
 
 If something is misbehaving and you would rather not troubleshoot by
 hand, copy the troubleshooting prompt instead:
@@ -217,7 +231,7 @@ cargo install --git https://github.com/fabiofurlano/SafeAI-Model-Finder --locked
 - `--git …` fetches the latest public `main` commit.
 - `--locked` pins every dependency to the exact versions recorded
   in the in-repo `Cargo.lock` for a reproducible, deterministic build.
-- `--force` overwrites the existing `~/.cargo/bin/safeai-model-finder`
+- `--force` overwrites the existing installed `safeai-model-finder`
   binary without you having to run `cargo uninstall` first.
 
 Your settings, your existing models, your downloaded models, and your
@@ -297,19 +311,39 @@ get help.
 
 **`cargo: command not found` after installing rustup.**
 This is the most common mistake on a fresh machine. `rustup` puts
-Cargo in `~/.cargo/bin`, but the current shell may not have that
-directory in `PATH` yet. Open a new terminal, or in the current
+Cargo in Cargo's bin directory, but the current shell may not have
+that directory in `PATH` yet. Open a new terminal, or in the current
 shell run:
 ```bash
 source "$HOME/.cargo/env"
 cargo --version
 ```
 
+**On Windows: `rustc`/`cargo` not recognized right after the Visual
+C++ prerequisites install.**
+Rust itself may not have finished installing yet — the Microsoft
+prerequisites are a separate first-time step. If Windows recommended
+a restart, restart, then run `rustup-init.exe` again. Afterwards open
+a **new** Command Prompt / PowerShell and verify with
+`rustc --version` and `cargo --version`.
+
+**On Windows: rustup asks about missing Visual C++ prerequisites.**
+Choose option 1, "Quick install via the Visual Studio Community
+installer" — the tested path. It is not VS Code; it installs the
+Microsoft compiler/linker and Windows SDK Rust needs, and it can take
+noticeably longer than installing Model Finder itself.
+
+**`cargo install` prints compilation warnings.**
+Warnings are not installation failures. The install succeeded only if
+Cargo ends with lines like `Finished release profile` and
+`Installed package safeai-model-finder`.
+
 **SafeAI Model Finder shows "Ollama not running".**
 Install Ollama from <https://ollama.com/download> if it isn't there, or
-start the service if it's installed but stopped. Once `ollama serve`
-is responding on the loopback, Model Finder will detect it on the next
-relauch.
+start the service if it's installed but stopped. For the local/private
+SafeAI workflow, leave Ollama's "Expose to the network" option OFF —
+it is not needed. Once Ollama is responding on the loopback, refresh
+or restart Model Finder and it will be detected.
 
 **Model can be listed in Ollama but Model Finder shows a readiness-test
 timeout.**
