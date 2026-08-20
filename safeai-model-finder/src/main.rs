@@ -1,6 +1,7 @@
 mod api;
 mod security;
 
+use std::io::IsTerminal;
 use std::net::{IpAddr, SocketAddr};
 use std::sync::Arc;
 
@@ -144,7 +145,7 @@ async fn main() {
     }
 
     // Only install Ctrl+C handler if we have a terminal (not backgrounded)
-    let has_terminal = unsafe { libc::isatty(libc::STDIN_FILENO) } != 0;
+    let has_terminal = std::io::stdin().is_terminal();
 
     let server_result = if has_terminal {
         axum::serve(

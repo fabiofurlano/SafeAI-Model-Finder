@@ -29,7 +29,6 @@ rand = "0.8"
 hex = "0.4"
 open = "5"
 ureq = { version = "3.2", features = ["json"] }
-libc = "0.2"
 
 [build-dependencies]
 walkdir = "2"

@@ -1376,7 +1376,6 @@ version = "1.1.8"
 dependencies = [
  "axum",
  "hex",
- "libc",
  "llmfit-core",
  "open",
  "rand",

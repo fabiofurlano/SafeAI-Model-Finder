@@ -15,7 +15,10 @@ fn main() {
             .filter_map(|e| e.ok())
             .filter(|e| e.file_type().is_file())
         {
-            let abs_path = entry.path().to_string_lossy().to_string();
+            // ponytail: forward slashes are valid Rust string content and work
+            // in include_bytes! on Windows and Linux; backslashes would become
+            // invalid escape sequences in the generated literal.
+            let abs_path = entry.path().to_string_lossy().replace('\\', "/");
             let rel = entry.path().strip_prefix(&ui_dir).unwrap();
             let path_str = format!("/ui/{}", rel.display());
             let content_type = mime_guess_from_path(&path_str);
