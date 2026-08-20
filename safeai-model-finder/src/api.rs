@@ -1752,6 +1752,18 @@ mod tests {
     use std::sync::{Arc, Mutex};
     use tower::ServiceExt;
 
+    #[test]
+    fn embedded_asset_paths_never_contain_backslashes() {
+        assert!(!EMBEDDED_WEB_ASSETS.is_empty());
+        for asset in EMBEDDED_WEB_ASSETS {
+            assert!(
+                !asset.path.contains('\\'),
+                "asset path contains a backslash: {}",
+                asset.path
+            );
+        }
+    }
+
     const TOKEN: &str = "test-session-token";
 
     /// Serialises tests that mutate `OLLAMA_HOST` (process-global state).

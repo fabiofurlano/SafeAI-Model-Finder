@@ -20,7 +20,10 @@ fn main() {
             // invalid escape sequences in the generated literal.
             let abs_path = entry.path().to_string_lossy().replace('\\', "/");
             let rel = entry.path().strip_prefix(&ui_dir).unwrap();
-            let path_str = format!("/ui/{}", rel.display());
+            // ponytail: also normalize the public URL path; on Windows
+            // rel.display() would emit backslashes, which are invalid escape
+            // sequences in the generated string literal and wrong as a URL.
+            let path_str = format!("/ui/{}", rel.display()).replace('\\', "/");
             let content_type = mime_guess_from_path(&path_str);
             entries.push((path_str, content_type, abs_path));
         }
