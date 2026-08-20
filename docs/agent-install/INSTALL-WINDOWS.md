@@ -61,16 +61,11 @@ Before touching anything, the agent must:
    Get-Command safeai-model-finder -ErrorAction SilentlyContinue
    ```
 
-5. Verify that the MSVC build tools are present (Windows needs C and C++
-   tooling for Rust to compile native dependencies):
-
-   ```powershell
-   Get-Command cl.exe -ErrorAction SilentlyContinue
-   ```
-
-   If `cl.exe` is missing, the recommended fix is to install the
-   **Microsoft Visual C++ Build Tools** via Visual Studio's
-   "Desktop development with C++" workload.
+Do **not** pre-install Visual Studio tooling or check for `cl.exe`
+up front. On a fresh machine the proven path is to let **rustup
+itself** detect and install the missing Microsoft prerequisites
+(Step 2). Manual MSVC installation is a fallback only — see the
+Windows troubleshooting section.
 
 Report each finding back to the user before doing anything.
 
@@ -259,6 +254,12 @@ is the tested simple path. It is not VS Code; it installs the
 Microsoft compiler/linker and Windows SDK Rust needs. When it
 finishes, return to rustup and choose the default installation
 again — do not restart unless Rust cannot continue.
+
+**B-fallback. rustup's automatic prerequisite install fails.**
+Only in this case install the **Microsoft Visual C++ Build Tools**
+manually via Visual Studio's "Desktop development with C++"
+workload, restart if Windows requires it, then re-run
+`rustup-init.exe`. This is a fallback, not the normal path.
 
 **C. "Ollama not running".**
 Install or start Ollama. Leave "Expose Ollama to the network" OFF

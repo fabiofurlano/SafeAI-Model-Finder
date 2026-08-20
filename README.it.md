@@ -40,10 +40,10 @@ informazione sul tuo computer esce dalla macchina.
 
 ## Avvio rapido
 
-Per partire servono solo due cose: **Ollama** (già installato e in
-esecuzione) e **SafeAI Model Finder** stesso.
+Da una macchina nuova servono tre cose, in questo ordine: **Ollama**,
+la **toolchain Rust/Cargo** e **SafeAI Model Finder** stesso.
 
-1. **Assicurati che Ollama sia installato e in esecuzione.**
+1. **Installa Ollama e assicurati che sia in esecuzione.**
    Scaricalo da <https://ollama.com/download> per la tua piattaforma.
    SafeAI Model Finder gestisce i modelli tramite la tua installazione
    locale di Ollama — se Ollama manca o è fermo, lo strumento mostrerà
@@ -51,13 +51,30 @@ esecuzione) e **SafeAI Model Finder** stesso.
    `Connection refused`. SafeAI Model Finder non include né sostituisce
    Ollama; i modelli che hai già oggi restano dove sono.
 
-2. **Installa SafeAI Model Finder dal terminale** (una sola riga):
+2. **Installa Rust/Cargo** (salta se `cargo --version` funziona già):
+   scarica ed esegui `rustup-init.exe` da <https://rustup.rs> su
+   Windows, oppure segui le istruzioni rustup per Linux/macOS.
+
+   **Su Windows**, se rustup segnala i prerequisiti Visual C++
+   mancanti e mostra un menu numerato, premi `1` (Quick install via
+   the Visual Studio Community installer) e lascia finire
+   l'installer Microsoft. Poi **torna alla STESSA finestra di rustup**
+   e, quando chiede nuovamente come procedere, premi di nuovo `1` per
+   continuare l'installazione predefinita di Rust. **Non** riavviare
+   Windows solo perché l'installer Microsoft lo consiglia —
+   nell'installazione pulita provata Rust ha terminato senza riavvio.
+   Riavvia solo se rustup non riesce a continuare o se `rustc`/
+   `cargo` restano non disponibili. Quando rustup termina e la sua
+   finestra si chiude, apri un **nuovo** Command Prompt e verifica con
+   `rustc --version` e `cargo --version`.
+
+3. **Installa SafeAI Model Finder dal terminale** (una sola riga):
 
    ```bash
    cargo install --git https://github.com/fabiofurlano/SafeAI-Model-Finder --locked
    ```
 
-3. **Avvialo**:
+4. **Avvialo**:
 
    ```bash
    safeai-model-finder
@@ -86,10 +103,11 @@ SafeAI Model Finder si installa e si avvia da terminale. Ti serve:
 - La toolchain **Rust**, installata tramite **rustup** da
   <https://rustup.rs>. `rustup` installa insieme `rustc`, `cargo` e
   `rustup` — Cargo **non** è un prerequisito separato. Dopo che
-  rustup ha finito, apri un **nuovo terminale** oppure esegui
-  `source "$HOME/.cargo/env"` così `cargo --version` funziona nella
-  shell corrente. (Questo è il passaggio che salta più spesso su una
-  macchina nuova.)
+  rustup ha finito, apri un **nuovo terminale** — oppure, su
+  Linux/macOS, esegui `source "$HOME/.cargo/env"` nella shell
+  corrente — così `cargo --version` funziona. (Aprire un nuovo
+  terminale è il passaggio che salta più spesso su una macchina
+  nuova.)
 - **Rust 1.95 o più recente** (`rustc --version`).
 - Il percorso di installazione qui sotto è stato **provato
   end-to-end su Linux e su Windows** (una macchina Windows nuova
@@ -150,14 +168,16 @@ deterministica. L'installazione mette un singolo binario di nome
 `safeai-model-finder` nella directory bin di Cargo
 (`safeai-model-finder.exe` su Windows).
 
-**In una shell in cui rustup è appena stato installato**, esegui prima:
+**In una shell in cui rustup è appena stato installato**
+(Linux/macOS), esegui prima:
 
 ```bash
 source "$HOME/.cargo/env"
 ```
 
 oppure apri una nuova finestra del terminale, poi rilancia il comando
-`cargo install`.
+`cargo install`. Su Windows basta aprire un nuovo Command Prompt /
+PowerShell.
 
 Per disinstallare:
 
@@ -326,7 +346,7 @@ e dove trovare aiuto.
 È l'errore più comune su una macchina nuova. `rustup` mette Cargo
 nella directory bin di Cargo, ma la shell corrente potrebbe non
 avere ancora quella directory in `PATH`. Apri un nuovo terminale,
-oppure nella shell corrente esegui:
+oppure nella shell corrente esegui (Linux/macOS):
 ```bash
 source "$HOME/.cargo/env"
 cargo --version
