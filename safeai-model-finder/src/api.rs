@@ -64,7 +64,7 @@ pub struct ActiveDownload {
 
 // ── Request / Response types ───────────────────────────────────
 
-#[derive(Debug, Default, Deserialize)]
+#[derive(Clone, Debug, Default, Deserialize)]
 pub struct ModelQuery {
     pub q: Option<String>, // free-text search (Browse view)
     pub use_case: Option<String>,
@@ -84,7 +84,7 @@ pub struct ModelQuery {
     pub source: Option<String>, // ollama (default) | huggingface
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 pub struct PullRequest {
     pub model: String,
     pub ollama_tag: String,
@@ -891,7 +891,13 @@ fn valid_hf_repo(repo: &str) -> bool {
 }
 
 fn artifact_quant(file: &str) -> Option<String> {
-    if file.contains('/') || file.contains('\\') || !file.to_ascii_lowercase().ends_with(".gguf") {
+    if file.is_empty()
+        || file.len() > 255
+        || !file
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | '-'))
+        || !file.to_ascii_lowercase().ends_with(".gguf")
+    {
         return None;
     }
     let upper = file.to_ascii_uppercase();
@@ -1028,6 +1034,21 @@ fn recommended_hf_variant(model: &LlmModel, variants: &[serde_json::Value]) -> O
         .or((!variants.is_empty()).then_some(0))
 }
 
+fn hf_quant_options(variants: &[serde_json::Value], selected: usize) -> Vec<serde_json::Value> {
+    variants
+        .iter()
+        .enumerate()
+        .map(|(index, value)| {
+            let mut value = value.clone();
+            value["memory_gb"] = value["memory_required_gb"].clone();
+            value["tps"] = value["estimated_tps"].clone();
+            value["fits"] = serde_json::Value::Bool(value["fit_level"] != "TooTight");
+            value["selected"] = serde_json::Value::Bool(index == selected);
+            value
+        })
+        .collect()
+}
+
 fn huggingface_models(state: &AppState, query: &ModelQuery) -> serde_json::Value {
     let specs = analysis_specs(&state.specs, query);
     let ctx = query.context.unwrap_or(DEFAULT_ESTIMATION_CTX);
@@ -1057,15 +1078,7 @@ fn huggingface_models(state: &AppState, query: &ModelQuery) -> serde_json::Value
         let Some(selected) = recommended_hf_variant(model, &variants) else {
             continue;
         };
-        let quant_options: Vec<_> = variants
-            .iter()
-            .enumerate()
-            .map(|(index, value)| {
-                let mut value = value.clone();
-                value["selected"] = serde_json::Value::Bool(index == selected);
-                value
-            })
-            .collect();
+        let quant_options = hf_quant_options(&variants, selected);
         let mut card = variants.remove(selected);
         let fit = match card["fit_level"].as_str() {
             Some("Perfect") => FitLevel::Perfect,
@@ -1124,9 +1137,17 @@ fn huggingface_models(state: &AppState, query: &ModelQuery) -> serde_json::Value
 async fn search_models(
     State(state): State<Arc<AppState>>,
     Query(query): Query<ModelQuery>,
-) -> Json<serde_json::Value> {
+) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
     if query.source.as_deref() == Some("huggingface") {
-        return Json(huggingface_models(&state, &query));
+        let result = tokio::task::spawn_blocking(move || huggingface_models(&state, &query))
+            .await
+            .map_err(|e| {
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(serde_json::json!({ "error": format!("Hugging Face discovery failed: {e}") })),
+                )
+            })?;
+        return Ok(Json(result));
     }
     let specs = analysis_specs(&state.specs, &query);
     let ctx = query.context.unwrap_or(DEFAULT_ESTIMATION_CTX);
@@ -1215,7 +1236,9 @@ async fn search_models(
         })
         .collect();
 
-    Json(serde_json::json!({ "results": results, "total": total }))
+    Ok(Json(
+        serde_json::json!({ "results": results, "total": total }),
+    ))
 }
 
 fn is_ollama_compatible(model: &LlmModel) -> bool {
@@ -1309,7 +1332,18 @@ async fn start_pull(
         )
     })?;
 
-    if !pull_request_allowed(&state, &body) {
+    let allowed = if body.ollama_tag.starts_with("hf.co/") {
+        let validation_state = Arc::clone(&state);
+        let validation_body = body.clone();
+        tokio::task::spawn_blocking(move || {
+            pull_request_allowed(&validation_state, &validation_body)
+        })
+        .await
+        .unwrap_or(false)
+    } else {
+        pull_request_allowed(&state, &body)
+    };
+    if !allowed {
         return Err((
             StatusCode::BAD_REQUEST,
             Json(

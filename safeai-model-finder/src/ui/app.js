@@ -656,6 +656,7 @@ async function apiPost(path, body) {
         // without depending on the English message wording.
         const e = new Error(err.error || `HTTP ${res.status}`);
         e.status = res.status;
+        e.installed = err.installed === true;
         throw e;
     }
     return res.json();
@@ -1636,11 +1637,12 @@ async function testModel(modelName, ollamaTag) {
             </div>
         `;
     } catch (e) {
+        const installed = e.installed === true;
         result.innerHTML = `
             <div class="result-error">
-                <h3>${escapeHtml(t('readiness.installedTitle'))}</h3>
+                <h3>${escapeHtml(t(installed ? 'readiness.installedTitle' : 'readiness.failedTitle'))}</h3>
                 <p>${escapeHtml(localizeError(e.message))}</p>
-                <p>${escapeHtml(t('readiness.installedHint'))}</p>
+                <p>${escapeHtml(t(installed ? 'readiness.installedHint' : 'readiness.failedHint', { msg: e.message }))}</p>
                 <button class="btn btn-secondary" style="margin-top:12px" type="button" onclick="testModel('${escapeAttr(modelName)}', '${escapeAttr(ollamaTag)}')">${ICONS.retry} ${escapeHtml(t('download.runTest'))}</button>
             </div>
         `;
