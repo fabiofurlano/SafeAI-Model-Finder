@@ -109,6 +109,9 @@
   "browse": {
     "title": "Browse models",
     "subtitle": "Search the full catalog and compare what fits this computer.",
+    "sourceLabel": "Source",
+    "sourceOllama": "Ollama catalogue",
+    "sourceHuggingFace": "More GGUF models",
     "searchPlaceholder": "Search by name or provider…",
     "searchAria": "Search models",
     "searchingAria": "Searching models",
@@ -260,6 +263,8 @@
     "readyTitle": "Ready to use",
     "responded": "responded successfully.",
     "safeaiHint": "It's ready in Ollama and in SafeAI — refresh the model selector and choose {name}.",
+    "installedTitle": "Installed; readiness needs attention",
+    "installedHint": "The model is installed in Ollama. Retry this test without downloading it again.",
     "failedTitle": "Readiness test failed",
     "failedHint": "{msg}"
   },

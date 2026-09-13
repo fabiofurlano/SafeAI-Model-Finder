@@ -27,6 +27,12 @@ leaves it.
   quantisation picking.
 - **Find / Browse / Installed views.** Discover new models or work with
   what is already in your local Ollama store.
+- **Additional Hugging Face GGUF choices.** Browse a small curated set of
+  Ollama-compatible GGUF repositories, with one exact hardware-aware
+  quantisation recommended in Easy Mode and alternatives in Advanced Mode.
+  Model Finder validates the exact live artifact, then asks your normal
+  Ollama installation to download and own it. This does not mean every
+  Hugging Face model, or every GGUF file, works with Ollama.
 - **Performance benchmarks.** Measure real tokens-per-second on your
   hardware before you commit to a model.
 - **Hardware Planner.** Project how a model will behave across different

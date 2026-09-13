@@ -109,6 +109,9 @@
   "browse": {
     "title": "Sfoglia i modelli",
     "subtitle": "Cerca nell'intero catalogo e confronta ciò che si adatta a questo computer.",
+    "sourceLabel": "Fonte",
+    "sourceOllama": "Catalogo Ollama",
+    "sourceHuggingFace": "Altri modelli GGUF",
     "searchPlaceholder": "Cerca per nome o provider…",
     "searchAria": "Cerca modelli",
     "searchingAria": "Ricerca dei modelli",
@@ -260,6 +263,8 @@
     "readyTitle": "Pronto all'uso",
     "responded": "ha risposto correttamente.",
     "safeaiHint": "È pronto in Ollama e in SafeAI — aggiorna il selettore dei modelli e scegli {name}.",
+    "installedTitle": "Installato; verifica di prontezza da riprovare",
+    "installedHint": "Il modello è installato in Ollama. Ripeti questo test senza scaricarlo di nuovo.",
     "failedTitle": "Test di prontezza non riuscito",
     "failedHint": "{msg}"
   },

@@ -248,6 +248,23 @@ impl OllamaProvider {
             .send_json(&body)
             .is_ok()
     }
+
+    /// Send one short local generation request through this Ollama instance.
+    pub fn test_model(&self, model_tag: &str) -> Result<(), String> {
+        let body = serde_json::json!({
+            "model": model_tag,
+            "prompt": "Hello. Respond with exactly: OK",
+            "stream": false,
+            "options": { "num_predict": 10 },
+        });
+        ureq::post(&self.api_url("generate"))
+            .config()
+            .timeout_global(Some(std::time::Duration::from_secs(30)))
+            .build()
+            .send_json(&body)
+            .map(|_| ())
+            .map_err(|e| format!("Readiness test failed: {e}"))
+    }
 }
 
 // -- JSON response types for Ollama API --

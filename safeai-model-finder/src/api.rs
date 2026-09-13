@@ -21,7 +21,7 @@ use llmfit_core::fit::{
 use llmfit_core::hardware::{GpuBackend, SystemSpecs};
 use llmfit_core::models::{Capability, LlmModel, QUANT_HIERARCHY, UseCase, quant_speed_multiplier};
 use llmfit_core::plan::{PlanRequest, estimate_model_plan};
-use llmfit_core::providers::{OllamaProvider, PullEvent};
+use llmfit_core::providers::{LlamaCppProvider, OllamaProvider, PullEvent};
 use serde::{Deserialize, Serialize};
 
 include!(concat!(env!("OUT_DIR"), "/web_assets.rs"));
@@ -81,12 +81,55 @@ pub struct ModelQuery {
     pub license: Option<String>, // licence substring filter
     pub language: Option<String>, // supported-language filter
     pub size: Option<String>, // parameter-size bucket: lt1 | 1to3 | 3to7 | 7to13 | 13to30 | 30to70 | gt70
+    pub source: Option<String>, // ollama (default) | huggingface
 }
 
 #[derive(Debug, Deserialize)]
 pub struct PullRequest {
     pub model: String,
     pub ollama_tag: String,
+}
+
+#[derive(Clone, Copy)]
+struct HfGgufSeed {
+    model: &'static str,
+    repo: &'static str,
+}
+
+// A deliberately small, text-only compatibility boundary. Each family has
+// an ordinary Ollama counterpart and each repository is resolved live before
+// it is shown or installed; arbitrary Hub repositories are never accepted.
+const HF_GGUF_SEEDS: &[HfGgufSeed] = &[
+    HfGgufSeed {
+        model: "HuggingFaceTB/SmolLM2-135M-Instruct",
+        repo: "bartowski/SmolLM2-135M-Instruct-GGUF",
+    },
+    HfGgufSeed {
+        model: "Qwen/Qwen2.5-Coder-0.5B-Instruct",
+        repo: "bartowski/Qwen2.5-Coder-0.5B-Instruct-GGUF",
+    },
+    HfGgufSeed {
+        model: "meta-llama/Llama-3.2-1B-Instruct",
+        repo: "bartowski/Llama-3.2-1B-Instruct-GGUF",
+    },
+    HfGgufSeed {
+        model: "Qwen/Qwen2.5-3B-Instruct",
+        repo: "bartowski/Qwen2.5-3B-Instruct-GGUF",
+    },
+];
+
+#[derive(Clone)]
+struct HfGgufArtifact {
+    repo: String,
+    file: String,
+    quant: String,
+    size_bytes: u64,
+}
+
+impl HfGgufArtifact {
+    fn ollama_tag(&self) -> String {
+        format!("hf.co/{}:{}", self.repo, self.file)
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -499,6 +542,10 @@ fn apply_browse_filters(
     if query.installed == Some(true) {
         fits.retain(|f| model_installed(&f.model, installed_set));
     }
+    fits.retain(|f| browse_model_matches(&f.model, query));
+}
+
+fn browse_model_matches(model: &LlmModel, query: &ModelQuery) -> bool {
     if let Some(csv) = query.caps.as_deref() {
         let want: Vec<String> = csv
             .split(',')
@@ -506,42 +553,40 @@ fn apply_browse_filters(
             .filter(|c| !c.is_empty())
             .collect();
         if !want.is_empty() {
-            fits.retain(|f| {
-                let caps: Vec<String> = Capability::infer(&f.model)
-                    .iter()
-                    .map(|c| c.label().to_lowercase())
-                    .collect();
-                want.iter().all(|w| caps.iter().any(|c| c == w))
-            });
+            let caps: Vec<String> = Capability::infer(model)
+                .iter()
+                .map(|c| c.label().to_lowercase())
+                .collect();
+            if !want.iter().all(|w| caps.iter().any(|c| c == w)) {
+                return false;
+            }
         }
     }
     if let Some(lic) = query.license.as_deref() {
         let lic = lic.trim().to_lowercase();
-        if !lic.is_empty() {
-            fits.retain(|f| {
-                f.model
-                    .license
-                    .as_deref()
-                    .unwrap_or("")
-                    .to_lowercase()
-                    .contains(&lic)
-            });
+        if !lic.is_empty()
+            && !model
+                .license
+                .as_deref()
+                .unwrap_or("")
+                .to_lowercase()
+                .contains(&lic)
+        {
+            return false;
         }
     }
     if let Some(lang) = query.language.as_deref() {
         let lang = lang.trim();
-        if !lang.is_empty() {
-            fits.retain(|f| {
-                f.model
-                    .languages
-                    .iter()
-                    .any(|l| l.eq_ignore_ascii_case(lang))
-            });
+        if !lang.is_empty() && !model.languages.iter().any(|l| l.eq_ignore_ascii_case(lang)) {
+            return false;
         }
     }
-    if let Some(size) = query.size.as_deref() {
-        fits.retain(|f| size_bucket_matches(&f.model, size));
+    if let Some(size) = query.size.as_deref()
+        && !size_bucket_matches(model, size)
+    {
+        return false;
     }
+    true
 }
 
 fn min_fit_threshold(raw: Option<&str>) -> Option<FitLevel> {
@@ -831,10 +876,258 @@ fn make_recommendation(
 
 // ── Search / Browse ────────────────────────────────────────────
 
+fn valid_hf_repo(repo: &str) -> bool {
+    let mut parts = repo.split('/');
+    let valid_part = |part: &str| {
+        !part.is_empty()
+            && part.len() <= 96
+            && !part.starts_with(['.', '-'])
+            && !part.ends_with(['.', '-'])
+            && part
+                .chars()
+                .all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | '-'))
+    };
+    matches!((parts.next(), parts.next(), parts.next()), (Some(a), Some(b), None) if valid_part(a) && valid_part(b))
+}
+
+fn artifact_quant(file: &str) -> Option<String> {
+    if file.contains('/') || file.contains('\\') || !file.to_ascii_lowercase().ends_with(".gguf") {
+        return None;
+    }
+    let upper = file.to_ascii_uppercase();
+    QUANT_HIERARCHY
+        .iter()
+        .find(|quant| upper.ends_with(&format!("-{}.GGUF", quant)))
+        .map(|quant| (*quant).to_string())
+}
+
+fn hf_artifacts(repo: &str, files: Vec<(String, u64)>) -> Vec<HfGgufArtifact> {
+    if !valid_hf_repo(repo) {
+        return Vec::new();
+    }
+    let mut artifacts: Vec<_> = files
+        .into_iter()
+        .filter(|(_, size)| *size > 0)
+        .filter_map(|(file, size_bytes)| {
+            Some(HfGgufArtifact {
+                repo: repo.to_string(),
+                quant: artifact_quant(&file)?,
+                file,
+                size_bytes,
+            })
+        })
+        .collect();
+    artifacts.sort_by(|a, b| {
+        let rank = |q: &str| {
+            QUANT_HIERARCHY
+                .iter()
+                .position(|v| *v == q)
+                .unwrap_or(usize::MAX)
+        };
+        rank(&a.quant)
+            .cmp(&rank(&b.quant))
+            .then_with(|| a.file.cmp(&b.file))
+    });
+    artifacts.dedup_by(|a, b| a.quant == b.quant);
+    artifacts
+}
+
+fn parse_hf_ollama_tag(tag: &str) -> Option<(&str, &str)> {
+    let rest = tag.strip_prefix("hf.co/")?;
+    let (repo, file) = rest.rsplit_once(':')?;
+    valid_hf_repo(repo).then_some(())?;
+    artifact_quant(file)?;
+    Some((repo, file))
+}
+
+fn hf_seed(model: &str, repo: &str) -> bool {
+    HF_GGUF_SEEDS
+        .iter()
+        .any(|seed| seed.model == model && seed.repo == repo)
+}
+
+fn pull_request_allowed(state: &AppState, body: &PullRequest) -> bool {
+    let Some(model) = state.models.iter().find(|m| m.name == body.model) else {
+        return false;
+    };
+    if llmfit_core::providers::ollama_pull_tag(&model.name).as_deref()
+        == Some(body.ollama_tag.as_str())
+    {
+        return true;
+    }
+    let Some((repo, file)) = parse_hf_ollama_tag(&body.ollama_tag) else {
+        return false;
+    };
+    hf_seed(&body.model, repo)
+        && hf_artifacts(repo, LlamaCppProvider::list_repo_gguf_files(repo))
+            .iter()
+            .any(|artifact| artifact.file == file && artifact.ollama_tag() == body.ollama_tag)
+}
+
+fn hf_variant_json(
+    model: &LlmModel,
+    artifact: &HfGgufArtifact,
+    specs: &SystemSpecs,
+    ctx: u32,
+    installed: &HashSet<String>,
+) -> Option<serde_json::Value> {
+    let plan = estimate_model_plan(
+        model,
+        &PlanRequest {
+            context: ctx.min(model.context_length).max(1),
+            quant: Some(artifact.quant.clone()),
+            target_tps: None,
+            kv_quant: None,
+        },
+        specs,
+    )
+    .ok()?;
+    let tag = artifact.ollama_tag();
+    let memory = model.estimate_memory_gb(&artifact.quant, ctx.min(model.context_length).max(1));
+    Some(serde_json::json!({
+        "name": model.name,
+        "provider": model.provider,
+        "source": "huggingface",
+        "hf_repo": artifact.repo,
+        "hf_file": artifact.file,
+        "ollama_tag": tag,
+        "parameter_count": model.parameter_count,
+        "parameter_count_b": model.params_b(),
+        "use_case": model.use_case,
+        "fit_level": format!("{:?}", plan.current.fit_level),
+        "run_mode": format!("{:?}", plan.current.run_mode),
+        "estimated_tps": (plan.current.estimated_tps * 10.0).round() / 10.0,
+        "memory_required_gb": (memory * 100.0).round() / 100.0,
+        "disk_size_gb": ((artifact.size_bytes as f64 / 1_073_741_824.0) * 100.0).round() / 100.0,
+        "size_bytes": artifact.size_bytes,
+        "quant": artifact.quant,
+        "slow": plan.current.estimated_tps < EASY_MIN_TPS,
+        "installed": installed.contains(&tag.to_lowercase()),
+        "context_length": model.context_length,
+        "capabilities": model.capabilities.iter().map(|c| c.label().to_string()).collect::<Vec<_>>(),
+        "release_date": model.release_date,
+        "languages": model.languages,
+        "has_vision": false,
+        "has_tools": model.capabilities.contains(&Capability::ToolUse),
+        "has_audio": false,
+        "has_tts": false,
+        "num_experts": model.num_experts,
+        "active_experts": model.active_experts,
+        "active_parameters": model.active_parameters,
+        "license": model.license.clone().unwrap_or_default(),
+        "is_moe": model.is_moe,
+    }))
+}
+
+fn recommended_hf_variant(model: &LlmModel, variants: &[serde_json::Value]) -> Option<usize> {
+    let runnable = |v: &serde_json::Value| v["fit_level"] != "TooTight";
+    variants
+        .iter()
+        .position(|v| v["quant"] == model.quantization && runnable(v))
+        .or_else(|| variants.iter().position(runnable))
+        .or((!variants.is_empty()).then_some(0))
+}
+
+fn huggingface_models(state: &AppState, query: &ModelQuery) -> serde_json::Value {
+    let specs = analysis_specs(&state.specs, query);
+    let ctx = query.context.unwrap_or(DEFAULT_ESTIMATION_CTX);
+    let q = query.q.as_deref().unwrap_or("").trim().to_ascii_lowercase();
+    let installed = get_installed_models();
+    let mut groups = Vec::new();
+
+    for seed in HF_GGUF_SEEDS {
+        let Some(model) = state.models.iter().find(|m| m.name == seed.model) else {
+            continue;
+        };
+        if !browse_model_matches(model, query) {
+            continue;
+        }
+        if !q.is_empty()
+            && !model.name.to_ascii_lowercase().contains(&q)
+            && !model.use_case.to_ascii_lowercase().contains(&q)
+            && !seed.repo.to_ascii_lowercase().contains(&q)
+        {
+            continue;
+        }
+        let artifacts = hf_artifacts(seed.repo, LlamaCppProvider::list_repo_gguf_files(seed.repo));
+        let mut variants: Vec<_> = artifacts
+            .iter()
+            .filter_map(|a| hf_variant_json(model, a, &specs, ctx, &installed))
+            .collect();
+        let Some(selected) = recommended_hf_variant(model, &variants) else {
+            continue;
+        };
+        let quant_options: Vec<_> = variants
+            .iter()
+            .enumerate()
+            .map(|(index, value)| {
+                let mut value = value.clone();
+                value["selected"] = serde_json::Value::Bool(index == selected);
+                value
+            })
+            .collect();
+        let mut card = variants.remove(selected);
+        let fit = match card["fit_level"].as_str() {
+            Some("Perfect") => FitLevel::Perfect,
+            Some("Good") => FitLevel::Good,
+            Some("Marginal") => FitLevel::Marginal,
+            _ => FitLevel::TooTight,
+        };
+        let fit_ok = min_fit_threshold(query.min_fit.as_deref())
+            .map(|minimum| fits_at_least(fit, minimum))
+            .unwrap_or(fit != FitLevel::TooTight);
+        if !fit_ok || query.installed == Some(true) && card["installed"] != true {
+            continue;
+        }
+        if query.mode.as_deref() == Some("advanced") {
+            card["quant_options"] = serde_json::Value::Array(quant_options);
+        } else {
+            card["quant_options"] = serde_json::Value::Array(Vec::new());
+        }
+        groups.push(card);
+    }
+
+    let number = |value: &serde_json::Value, key: &str| value[key].as_f64().unwrap_or_default();
+    match query.sort.as_deref() {
+        Some("tps") | Some("speed") => {
+            groups.sort_by(|a, b| number(b, "estimated_tps").total_cmp(&number(a, "estimated_tps")))
+        }
+        Some("params") | Some("size") => groups.sort_by(|a, b| {
+            number(b, "parameter_count_b").total_cmp(&number(a, "parameter_count_b"))
+        }),
+        Some("mem") | Some("memory") => groups.sort_by(|a, b| {
+            number(b, "memory_required_gb").total_cmp(&number(a, "memory_required_gb"))
+        }),
+        Some("newest") => {
+            groups.sort_by(|a, b| b["release_date"].as_str().cmp(&a["release_date"].as_str()))
+        }
+        _ => groups.sort_by(|a, b| {
+            let rank = |value: &serde_json::Value| match value["fit_level"].as_str() {
+                Some("Perfect") => 3,
+                Some("Good") => 2,
+                Some("Marginal") => 1,
+                _ => 0,
+            };
+            rank(b)
+                .cmp(&rank(a))
+                .then_with(|| number(b, "estimated_tps").total_cmp(&number(a, "estimated_tps")))
+        }),
+    }
+    let total = groups.len();
+    if let Some(limit) = query.limit {
+        groups.truncate(limit);
+    }
+
+    serde_json::json!({ "total": total, "results": groups, "source": "huggingface" })
+}
+
 async fn search_models(
     State(state): State<Arc<AppState>>,
     Query(query): Query<ModelQuery>,
 ) -> Json<serde_json::Value> {
+    if query.source.as_deref() == Some("huggingface") {
+        return Json(huggingface_models(&state, &query));
+    }
     let specs = analysis_specs(&state.specs, &query);
     let ctx = query.context.unwrap_or(DEFAULT_ESTIMATION_CTX);
     let q = query
@@ -1015,6 +1308,15 @@ async fn start_pull(
             })),
         )
     })?;
+
+    if !pull_request_allowed(&state, &body) {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            Json(
+                serde_json::json!({ "error": "Model artifact is not an offered Ollama-compatible download" }),
+            ),
+        ));
+    }
 
     // Check no active download
     {
@@ -1690,42 +1992,29 @@ async fn readiness_test(
         ));
     }
 
-    // Simple readiness check: send a short prompt
-    let body = serde_json::json!({
-        "model": model_name,
-        "prompt": "Hello. Respond with exactly: OK",
-        "stream": false,
-        "options": {
-            "num_predict": 10,
-        },
-    });
-
-    let url = format!("http://localhost:11434/api/generate");
-    match ureq::post(&url)
-        .config()
-        .timeout_global(Some(std::time::Duration::from_secs(30)))
-        .build()
-        .send_json(&body)
+    if !provider
+        .installed_models()
+        .contains(&model_name.to_lowercase())
     {
-        Ok(resp) => {
-            if resp.status() == 200 {
-                Ok(Json(serde_json::json!({
-                    "status": "ready",
-                    "model": model_name,
-                    "message": "Model is ready for use in SafeAI and Ollama",
-                })))
-            } else {
-                Err((
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    Json(
-                        serde_json::json!({ "error": format!("Model returned status {}", resp.status()) }),
-                    ),
-                ))
-            }
-        }
+        return Err((
+            StatusCode::NOT_FOUND,
+            Json(serde_json::json!({ "error": "Model is not installed in Ollama" })),
+        ));
+    }
+
+    match provider.test_model(&model_name) {
+        Ok(()) => Ok(Json(serde_json::json!({
+            "status": "ready",
+            "model": model_name,
+            "message": "Model is ready for use in SafeAI and Ollama",
+        }))),
         Err(e) => Err((
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(serde_json::json!({ "error": format!("Readiness test failed: {}", e) })),
+            StatusCode::BAD_GATEWAY,
+            Json(serde_json::json!({
+                "error": e,
+                "installed": true,
+                "readiness": "failed",
+            })),
         )),
     }
 }
@@ -1774,6 +2063,7 @@ mod tests {
     #[derive(Default)]
     struct MockOllama {
         delete_status: u16,
+        generate_status: u16,
         /// Exact DELETE /api/delete request bodies received, in order.
         delete_bodies: Vec<String>,
         delete_calls: usize,
@@ -1788,8 +2078,17 @@ mod tests {
     /// plausible Ollama timing payload). Records every DELETE body and
     /// counts generate calls.
     fn spawn_mock(tags: &[&str], delete_status: u16) -> (SocketAddr, Arc<Mutex<MockOllama>>) {
+        spawn_mock_with_generate_status(tags, delete_status, 200)
+    }
+
+    fn spawn_mock_with_generate_status(
+        tags: &[&str],
+        delete_status: u16,
+        generate_status: u16,
+    ) -> (SocketAddr, Arc<Mutex<MockOllama>>) {
         let state = Arc::new(Mutex::new(MockOllama {
             delete_status,
+            generate_status,
             ..Default::default()
         }));
         let listener = TcpListener::bind("127.0.0.1:0").expect("bind mock");
@@ -1815,6 +2114,7 @@ mod tests {
                             let _ = write_response(&mut stream, status, "{\"status\":\"ok\"}");
                         } else if req.path == "/api/generate" {
                             st.generate_calls += 1;
+                            let status = st.generate_status;
                             drop(st);
                             // Warmup + measured runs get an identical,
                             // plausible Ollama timing payload: 20 prompt
@@ -1829,7 +2129,7 @@ mod tests {
                                 "total_duration": 4_200_000_000u64,
                             })
                             .to_string();
-                            let _ = write_response(&mut stream, 200, &body);
+                            let _ = write_response(&mut stream, status, &body);
                         } else if req.path == "/api/pull" {
                             st.pull_calls += 1;
                             drop(st);
@@ -1937,7 +2237,9 @@ mod tests {
         Arc::new(AppState {
             session_token: TOKEN.to_string(),
             specs: SystemSpecs::detect(),
-            models: Vec::new(),
+            models: llmfit_core::models::ModelDatabase::new()
+                .get_all_models()
+                .clone(),
             active_download: tokio::sync::RwLock::new(None),
             download_counter: std::sync::atomic::AtomicU32::new(0),
             active_benchmark: tokio::sync::RwLock::new(None),
@@ -1946,6 +2248,11 @@ mod tests {
     }
 
     fn pull_request(tag: &str, with_token: bool) -> Request<Body> {
+        let model = if tag.starts_with("smollm2:") {
+            "HuggingFaceTB/SmolLM2-135M-Instruct"
+        } else {
+            "Qwen/Qwen2.5-1.5B-Instruct"
+        };
         let mut builder = Request::builder()
             .method("POST")
             .uri("/api/pulls")
@@ -1955,7 +2262,7 @@ mod tests {
         }
         let mut req = builder
             .body(Body::from(
-                json!({ "model": "Any", "ollama_tag": tag }).to_string(),
+                json!({ "model": model, "ollama_tag": tag }).to_string(),
             ))
             .unwrap();
         req.extensions_mut()
@@ -1971,6 +2278,18 @@ mod tests {
             builder = builder.header("authorization", format!("Bearer {TOKEN}"));
         }
         let mut req = builder.body(Body::empty()).unwrap();
+        req.extensions_mut()
+            .insert(ConnectInfo(SocketAddr::from(([127, 0, 0, 1], 45678))));
+        req
+    }
+
+    fn readiness_request(tag: &str) -> Request<Body> {
+        let mut req = Request::builder()
+            .method("POST")
+            .uri(format!("/api/models/{tag}/readiness-test"))
+            .header("authorization", format!("Bearer {TOKEN}"))
+            .body(Body::empty())
+            .unwrap();
         req.extensions_mut()
             .insert(ConnectInfo(SocketAddr::from(([127, 0, 0, 1], 45678))));
         req
@@ -2047,6 +2366,128 @@ mod tests {
         ] {
             assert!(!validate_model_tag(tag), "expected {tag:?} to be rejected");
         }
+    }
+
+    #[test]
+    fn huggingface_boundary_rejects_unsupported_and_untrusted_content() {
+        assert!(hf_artifacts("evil/../repo", vec![("model-Q4_K_M.gguf".into(), 1)]).is_empty());
+        assert!(hf_artifacts("owner/repo", vec![("model.safetensors".into(), 1)]).is_empty());
+        assert!(hf_artifacts("owner/repo", vec![("../model-Q4_K_M.gguf".into(), 1)]).is_empty());
+        assert!(parse_hf_ollama_tag("hf.co/owner/repo:model.safetensors").is_none());
+        assert!(parse_hf_ollama_tag("hf.co/owner/../repo:model-Q4_K_M.gguf").is_none());
+    }
+
+    #[test]
+    fn supported_huggingface_result_resolves_deterministically_to_exact_artifact() {
+        let files = vec![
+            ("model-Q4_K_M.gguf".into(), 4_500_000_000),
+            ("model-Q8_0.gguf".into(), 8_000_000_000),
+            ("model-Q2_K.gguf".into(), 2_500_000_000),
+        ];
+        let first = hf_artifacts("owner/repo", files.clone());
+        let second = hf_artifacts("owner/repo", files);
+        assert_eq!(
+            first.iter().map(|a| &a.quant).collect::<Vec<_>>(),
+            vec!["Q8_0", "Q4_K_M", "Q2_K"]
+        );
+        assert_eq!(first[1].ollama_tag(), "hf.co/owner/repo:model-Q4_K_M.gguf");
+        assert_eq!(first[1].file, second[1].file);
+        assert_eq!(first[1].size_bytes, 4_500_000_000);
+        let tag = first[1].ollama_tag();
+        let (repo, file) = parse_hf_ollama_tag(&tag).unwrap();
+        assert_eq!((repo, file), ("owner/repo", first[1].file.as_str()));
+    }
+
+    #[test]
+    fn exact_huggingface_recommendation_is_deterministic_for_fixed_hardware() {
+        let model = llmfit_core::models::ModelDatabase::new()
+            .get_all_models()
+            .iter()
+            .find(|m| m.name == "HuggingFaceTB/SmolLM2-135M-Instruct")
+            .unwrap()
+            .clone();
+        let specs = SystemSpecs::detect()
+            .with_ram_override(8.0)
+            .with_cpu_core_override(4);
+        let installed = HashSet::new();
+        let artifacts = hf_artifacts(
+            "bartowski/SmolLM2-135M-Instruct-GGUF",
+            vec![
+                ("SmolLM2-135M-Instruct-Q8_0.gguf".into(), 144_811_360),
+                ("SmolLM2-135M-Instruct-Q4_K_M.gguf".into(), 105_454_432),
+                ("SmolLM2-135M-Instruct-Q2_K.gguf".into(), 88_202_080),
+            ],
+        );
+        let build = || {
+            artifacts
+                .iter()
+                .filter_map(|a| hf_variant_json(&model, a, &specs, 4096, &installed))
+                .collect::<Vec<_>>()
+        };
+        let first = build();
+        let second = build();
+        let a = recommended_hf_variant(&model, &first).unwrap();
+        let b = recommended_hf_variant(&model, &second).unwrap();
+        assert_eq!(first[a]["quant"], "Q4_K_M");
+        assert_eq!(first[a]["hf_file"], "SmolLM2-135M-Instruct-Q4_K_M.gguf");
+        assert_eq!(
+            first[a]["ollama_tag"],
+            format!(
+                "hf.co/bartowski/SmolLM2-135M-Instruct-GGUF:{}",
+                first[a]["hf_file"].as_str().unwrap()
+            )
+        );
+        assert_eq!(first[a], second[b]);
+    }
+
+    #[test]
+    fn failed_download_state_does_not_mark_a_model_installed() {
+        let model = llmfit_core::models::ModelDatabase::new()
+            .get_all_models()
+            .iter()
+            .find(|m| m.name == "HuggingFaceTB/SmolLM2-135M-Instruct")
+            .unwrap()
+            .clone();
+        let failed = ActiveDownload {
+            id: "dl-test".into(),
+            model_name: model.name.clone(),
+            ollama_tag: "hf.co/owner/repo:model-Q4_K_M.gguf".into(),
+            status: "error".into(),
+            progress_pct: 100.0,
+            message: "import failed".into(),
+        };
+        assert_eq!(failed.status, "error");
+        assert!(!model_installed(&model, &HashSet::new()));
+    }
+
+    #[test]
+    fn completed_install_is_distinct_from_readiness_failure() {
+        let _guard = ENV_LOCK.lock().unwrap();
+        let tag = "qwen2.5:1.5b";
+        let (addr, _) = spawn_mock_with_generate_status(&[tag], 200, 500);
+        unsafe {
+            std::env::set_var("OLLAMA_HOST", format!("http://{addr}"));
+        }
+        let state = test_state();
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        rt.block_on(async {
+            *state.active_download.write().await = Some(ActiveDownload {
+                id: "dl-done".into(),
+                model_name: "Qwen/Qwen2.5-1.5B-Instruct".into(),
+                ollama_tag: tag.into(),
+                status: "done".into(),
+                progress_pct: 100.0,
+                message: "completed".into(),
+            });
+            let (status, body) =
+                respond(build_router(Arc::clone(&state)), readiness_request(tag)).await;
+            assert_eq!(status, StatusCode::BAD_GATEWAY, "{body}");
+            assert_eq!(body["installed"], true);
+            assert_eq!(
+                state.active_download.read().await.as_ref().unwrap().status,
+                "done"
+            );
+        });
     }
 
     // ── Endpoint behaviour ─────────────────────────────────────

@@ -316,6 +316,7 @@ async function setupBrowse() {
         if (e.key === 'Enter') runBrowse();
     });
     document.getElementById('browseSort').addEventListener('change', runBrowse);
+    document.getElementById('browseSource').addEventListener('change', runBrowse);
     document.getElementById('browseMinFit').addEventListener('change', runBrowse);
     // Advanced filter row.
     document.getElementById('filterInstalled').addEventListener('change', runBrowse);
@@ -353,6 +354,7 @@ async function setupBrowse() {
 
 function browseParams() {
     const p = new URLSearchParams({ limit: '30' });
+    p.set('source', document.getElementById('browseSource').value);
     const q = document.getElementById('browseSearch').value.trim();
     if (q) p.set('q', q);
     const sort = document.getElementById('browseSort').value;
@@ -430,7 +432,7 @@ function renderBrowseRow(r) {
     const detailsOpen = currentMode === 'advanced' ? ' open' : '';
     const fitChip = `browse-chip fit-${r.fit_level.toLowerCase()}`;
     const slowChip = r.slow ? ` <span class="browse-chip slow">${escapeHtml(t('rec.slowShort'))}</span>` : '';
-    const detailChips = ((r.has_vision ? ` <span class="browse-chip cap-chip">${escapeHtml(t('filters.vision'))}</span>` : '') + (r.has_tools ? ` <span class="browse-chip cap-chip">${escapeHtml(t('filters.tools'))}</span>` : '') + (r.has_audio ? ` <span class="browse-chip cap-chip">${escapeHtml(t('details.audioShort'))}</span>` : '') + (r.has_tts ? ` <span class="browse-chip cap-chip">${escapeHtml(t('details.ttsShort'))}</span>` : ''));
+    const detailChips = ((r.source === 'huggingface' ? ` <span class="browse-chip cap-chip">Hugging Face GGUF</span>` : '') + (r.has_vision ? ` <span class="browse-chip cap-chip">${escapeHtml(t('filters.vision'))}</span>` : '') + (r.has_tools ? ` <span class="browse-chip cap-chip">${escapeHtml(t('filters.tools'))}</span>` : '') + (r.has_audio ? ` <span class="browse-chip cap-chip">${escapeHtml(t('details.audioShort'))}</span>` : '') + (r.has_tts ? ` <span class="browse-chip cap-chip">${escapeHtml(t('details.ttsShort'))}</span>` : ''));
     const comparing = compareSel.some(c => c.name === r.name);
     const compareBtn = comparing
         ? `<button class="compare-toggle is-on" type="button" aria-pressed="true" onclick="toggleCompareByName('${escapeAttr(r.name)}')">${ICONS.check} ${escapeHtml(t('browse.compare'))}</button>`
@@ -440,7 +442,7 @@ function renderBrowseRow(r) {
         : `<button class="btn btn-primary" type="button"${downloadActive ? ' disabled aria-disabled="true"' : ''} onclick="confirmDownload('${escapeAttr(r.name)}', '${escapeAttr(r.ollama_tag)}', ${r.disk_size_gb})">${ICONS.download} ${escapeHtml(t('rec.downloadShort'))}</button>`;
 
     return `
-    <article class="browse-row">
+    <article class="browse-row" data-model="${escapeAttr(r.name)}">
         <div class="browse-row-main">
             <div class="browse-row-title">
                 <span>${escapeHtml(humanName(r.name))}</span>
@@ -458,6 +460,7 @@ function renderBrowseRow(r) {
                 <summary>${escapeHtml(t('details.toggle'))}</summary>
                 <div class="rec-details-grid">
                     <div class="rec-detail-item"><span class="rec-detail-label">${escapeHtml(t('details.tag'))}</span><span class="rec-detail-value mono">${escapeHtml(r.ollama_tag)}</span></div>
+                    ${r.hf_repo ? `<div class="rec-detail-item"><span class="rec-detail-label">Hugging Face</span><span class="rec-detail-value mono">${escapeHtml(r.hf_repo)}</span></div>` : ''}
                     <div class="rec-detail-item"><span class="rec-detail-label">${escapeHtml(t('details.quant'))}</span><span class="rec-detail-value mono">${escapeHtml(r.quant)}</span></div>
                     <div class="rec-detail-item"><span class="rec-detail-label">${escapeHtml(t('details.fit'))}</span><span class="rec-detail-value">${escapeHtml(r.fit_level)}</span></div>
                     <div class="rec-detail-item"><span class="rec-detail-label">${escapeHtml(t('details.runMode'))}</span><span class="rec-detail-value">${escapeHtml(r.run_mode)}</span></div>
@@ -597,7 +600,7 @@ function renderQuantPicker(options) {
             ? `<span class="quant-opt-fits">${escapeHtml(t('quant.fits'))}</span>`
             : `<span class="quant-opt-nofit">${escapeHtml(t('quant.needs', { n: o.memory_gb.toFixed(1) }))}</span>`;
         return `
-        <button class="quant-opt${state}" type="button" data-quant="${escapeAttr(o.quant)}" onclick="selectQuant(this, '${escapeAttr(o.quant)}')">
+        <button class="quant-opt${state}" type="button" data-quant="${escapeAttr(o.quant)}" data-tag="${escapeAttr(o.ollama_tag || '')}" onclick="selectQuant(this)">
             <span class="quant-opt-name">${escapeHtml(o.quant)}</span>
             <span class="quant-opt-meta">~${o.memory_gb.toFixed(1)} GB · ${o.tps.toFixed(1)} tok/s</span>
             ${fits}
@@ -610,11 +613,25 @@ function renderQuantPicker(options) {
     </div>`;
 }
 
-function selectQuant(btn, quant) {
-    const group = btn.closest('.quant-options');
-    if (!group) return;
-    group.querySelectorAll('.quant-opt').forEach(o => o.classList.remove('selected'));
-    btn.classList.add('selected');
+function selectQuant(btn) {
+    if (!btn.dataset.tag) {
+        const group = btn.closest('.quant-options');
+        if (!group) return;
+        group.querySelectorAll('.quant-opt').forEach(o => o.classList.remove('selected'));
+        btn.classList.add('selected');
+        return;
+    }
+    const article = btn.closest('.browse-row');
+    const model = article && article.dataset.model;
+    const row = lastBrowseData && (lastBrowseData.results || []).find(r => r.name === model);
+    if (!row || !btn.dataset.tag) return;
+    const option = (row.quant_options || []).find(o => o.ollama_tag === btn.dataset.tag);
+    if (!option) return;
+    row.quant_options.forEach(o => { o.selected = o.ollama_tag === option.ollama_tag; });
+    const options = row.quant_options;
+    Object.assign(row, option);
+    row.quant_options = options;
+    renderBrowse(lastBrowseData, lastBrowseQuery);
 }
 
 // ── API Calls ────────────────────────────────────────────────
@@ -1583,6 +1600,7 @@ function onDownloadComplete(modelName, ollamaTag) {
     `;
 
     loadOllamaStatus();
+    testModel(modelName, ollamaTag);
 }
 
 function onDownloadError(message) {
@@ -1620,8 +1638,10 @@ async function testModel(modelName, ollamaTag) {
     } catch (e) {
         result.innerHTML = `
             <div class="result-error">
-                <h3>${escapeHtml(t('readiness.failedTitle'))}</h3>
+                <h3>${escapeHtml(t('readiness.installedTitle'))}</h3>
                 <p>${escapeHtml(localizeError(e.message))}</p>
+                <p>${escapeHtml(t('readiness.installedHint'))}</p>
+                <button class="btn btn-secondary" style="margin-top:12px" type="button" onclick="testModel('${escapeAttr(modelName)}', '${escapeAttr(ollamaTag)}')">${ICONS.retry} ${escapeHtml(t('download.runTest'))}</button>
             </div>
         `;
     }

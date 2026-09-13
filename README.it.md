@@ -28,6 +28,13 @@ informazione sul tuo computer esce dalla macchina.
   quantizzazione.
 - **Viste Trova / Sfoglia / Installati.** Scopri nuovi modelli o lavora
   con quelli già presenti nel tuo store Ollama locale.
+- **Altre scelte GGUF da Hugging Face.** Sfoglia una piccola selezione di
+  repository GGUF compatibili con Ollama, con una quantizzazione esatta
+  consigliata in base all'hardware in Modalità Semplice e le alternative in
+  Modalità Avanzata. Model Finder verifica l'artefatto live esatto, poi chiede
+  alla normale installazione di Ollama di scaricarlo e gestirlo. Questo non
+  significa che ogni modello Hugging Face, o ogni file GGUF, funzioni con
+  Ollama.
 - **Benchmark di prestazioni.** Misura i token al secondo reali sul tuo
   hardware prima di scegliere un modello.
 - **Pianifica hardware.** Proietta come si comporterà un modello su
