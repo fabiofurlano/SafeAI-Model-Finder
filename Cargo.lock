@@ -806,7 +806,7 @@ checksum = "11d3d7f243d5c5a8b9bb5d6dd2b1602c0cb0b9db1621bafc7ed66e35ff9fe092"
 
 [[package]]
 name = "llmfit-core"
-version = "1.1.8"
+version = "1.1.9"
 dependencies = [
  "base64",
  "dirs",
@@ -1372,7 +1372,7 @@ checksum = "9774ba4a74de5f7b1c1451ed6cd5285a32eddb5cccb8cc655a4e50009e06477f"
 
 [[package]]
 name = "safeai-model-finder"
-version = "1.1.8"
+version = "1.1.9"
 dependencies = [
  "axum",
  "hex",
