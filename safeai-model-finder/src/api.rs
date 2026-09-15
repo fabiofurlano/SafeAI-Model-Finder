@@ -1571,6 +1571,9 @@ fn office_privacy_status_payload() -> serde_json::Value {
         "artifact": {
             "name": plan.artifact_name,
             "format": plan.artifact_format.as_str(),
+            // Which Office-owned component release this artifact belongs to.
+            // A tag only — never a download URL.
+            "release_tag": office_privacy::OFFICE_PRIVACY_RELEASE_TAG,
             // No URL and no digest are published for any target yet, so the
             // customer download stays disabled rather than pointing at a
             // placeholder or at the SafeAI Desktop runtime repository.
@@ -3383,9 +3386,16 @@ mod tests {
                 "privacy status must not contain {forbidden:?}: {serialized}"
             );
         }
-        // Artifact identity is a name only — never a usable download URL.
-        assert_eq!(body["artifact"]["published"], false);
-        assert_eq!(body["artifact"]["download_available"], false);
+        // Artifact identity is a name only. `published` must agree with the
+        // reported support level rather than being hardcoded, so this holds on
+        // any host we run the tests on.
+        let published = body["artifact"]["published"].as_bool().unwrap();
+        assert_eq!(published, body["support"] == "published");
+        assert_eq!(
+            body["artifact"]["download_available"],
+            published,
+            "a published artifact and an available download must agree"
+        );
         let artifact_name = body["artifact"]["name"].as_str().unwrap();
         assert!(
             artifact_name.starts_with("safeai-office-privacy-runtime-"),

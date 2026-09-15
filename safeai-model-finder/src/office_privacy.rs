@@ -33,9 +33,11 @@
 //! ## Artifact ownership
 //!
 //! Customer downloads must come from `fabiofurlano/safeai-office-runtime`.
-//! Until the Office-owned asset is published, [`PlatformSupport`] reports
-//! `AwaitingOfficeArtifact` and the customer download is refused. A missing
-//! URL is never substituted with a Desktop URL or a placeholder.
+//! Windows x64 is published there and reports [`PlatformSupport::Published`].
+//! A target whose Office-owned asset is not published reports
+//! `AwaitingOfficeArtifact` and refuses the customer download; a target with no
+//! proven runtime at all reports `Unsupported`. A missing URL is never
+//! substituted with a Desktop URL or a placeholder.
 
 use std::io::Read;
 use std::path::{Path, PathBuf};
@@ -71,11 +73,44 @@ pub const OFFICE_APP_DIR: &str = "SafeAI Office";
 /// `SAFEAI_MF_DATA_DIR` convention used for measurements.
 pub const ENV_ROOT_OVERRIDE: &str = "SAFEAI_OFFICE_PRIVACY_DIR";
 
-/// Optional override pointing at an alternative packaging of the *Office-owned*
-/// runtime archive. This never changes the published-artifact gate: it only
-/// lets a maintainer exercise the pipeline against a locally built asset that
-/// carries the same file contract, and only when a digest is already pinned.
+/// Optional override pointing at a mirror or offline copy of the *Office-owned*
+/// runtime archive.
+///
+/// It is only honoured for a target whose archive digest is already pinned, and
+/// the pinned digest is still enforced after download — so this can relocate the
+/// download but can never substitute different content. It exists for an
+/// internal mirror or an air-gapped staging copy of the identical archive, and
+/// it is never a way to install an unverified runtime.
 pub const ENV_RUNTIME_URL_OVERRIDE: &str = "SAFEAI_OFFICE_PRIVACY_RUNTIME_URL";
+
+// ── Published Office-owned Windows x64 runtime artifact ───────────
+//
+// These are the real, public, anonymously fetchable values for the Office-owned
+// Windows runtime. They belong to `fabiofurlano/safeai-office-runtime`, not to
+// the SafeAI Desktop runtime repository, so SafeAI Office never depends on a
+// Desktop asset. The tag is a standalone component release: it is deliberately
+// NOT the SafeAI Office application updater release.
+
+/// Published Office-owned component release tag.
+pub const OFFICE_PRIVACY_RELEASE_TAG: &str = "office-privacy-v1.0.0";
+
+/// Published Office-owned Windows x64 runtime asset filename.
+pub const WINDOWS_ARTIFACT_NAME: &str =
+    "safeai-office-privacy-runtime-windows-x64-v1.0.0.zip";
+
+/// SHA-256 of the published Office-owned Windows x64 runtime archive.
+pub const WINDOWS_ARTIFACT_SHA256: &str =
+    "0bc2e0aa0177f2b82b3ae385f3adc1c65f515bac1730549840e118a34b08886b";
+
+/// Public, anonymously fetchable download URL for that archive.
+///
+/// Broken across `concat!` pieces only to respect the line-length limit; the
+/// resulting string is one unbroken URL with no whitespace in it.
+pub const WINDOWS_ARTIFACT_URL: &str = concat!(
+    "https://github.com/fabiofurlano/safeai-office-runtime/releases/download/",
+    "office-privacy-v1.0.0/",
+    "safeai-office-privacy-runtime-windows-x64-v1.0.0.zip",
+);
 
 // ── Proven upstream privacy contracts (SafeAI Desktop, read-only) ──
 //
@@ -276,6 +311,9 @@ impl OfficeTarget {
 /// How far the Office Privacy component can go on a given target.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum PlatformSupport {
+    /// The Office-owned customer artifact is published and verified, so the
+    /// customer download is enabled for this target.
+    Published,
     /// The runtime contract is proven for this target, but the Office-owned
     /// customer artifact has not been published yet. The installer structure
     /// is fully implemented; the customer download is refused.
@@ -289,6 +327,7 @@ impl PlatformSupport {
     /// Stable API / UI string.
     pub fn as_str(self) -> &'static str {
         match self {
+            PlatformSupport::Published => "published",
             PlatformSupport::AwaitingOfficeArtifact => "awaiting_office_artifact",
             PlatformSupport::Unsupported => "unsupported",
         }
@@ -337,22 +376,24 @@ pub struct OfficePrivacyPlan {
 
 /// Look up the approved artifact contract for a target.
 ///
-/// There is intentionally no "ready" arm yet: the Office-owned customer
-/// artifacts have not been published on `fabiofurlano/safeai-office-runtime`,
-/// so every supported target reports [`PlatformSupport::AwaitingOfficeArtifact`]
-/// and refuses the customer download. Publishing the asset and filling in
-/// `artifact_url` and `artifact_sha256` is the only change needed to enable it.
+/// Windows x64 is [`PlatformSupport::Published`]: its Office-owned archive is
+/// live on `fabiofurlano/safeai-office-runtime` and its URL and digest are the
+/// pinned constants above, so the customer download is enabled.
+///
+/// Linux reports `AwaitingOfficeArtifact` — the contract is proven but no
+/// downloadable Office-owned archive exists yet. macOS reports `Unsupported`:
+/// no macOS privacy runtime has ever been built or proven. Enabling either is
+/// a matter of filling in `artifact_url` and `artifact_sha256` here.
 pub fn plan_for(target: OfficeTarget) -> OfficePrivacyPlan {
     match (target.os, target.arch) {
         (OfficeOs::Windows, OfficeArch::X86_64) => OfficePrivacyPlan {
             target,
-            support: PlatformSupport::AwaitingOfficeArtifact,
-            support_detail: "Windows x64 runtime contract is proven and implemented; the \
-                             Office-owned self-contained archive has not been published yet.",
-            artifact_name: "safeai-office-privacy-runtime-windows-x64-v1.0.0.zip",
+            support: PlatformSupport::Published,
+            support_detail: "Windows x64 runtime is published by SafeAI Office and ready to install.",
+            artifact_name: WINDOWS_ARTIFACT_NAME,
             artifact_format: ArchiveFormat::Zip,
-            artifact_sha256: None,
-            artifact_url: None,
+            artifact_sha256: Some(WINDOWS_ARTIFACT_SHA256),
+            artifact_url: Some(WINDOWS_ARTIFACT_URL),
             archive_prefix: WINDOWS_RUNTIME_DIR,
             required_runtime_files: WINDOWS_REQUIRED_FILES.as_slice(),
             provenance: CONTRACT_PROVENANCE,
@@ -1082,33 +1123,35 @@ pub fn extract_archive(
 
 /// Which archive URL to use for a plan.
 ///
-/// The published Office-owned URL is preferred. A maintainer override is only
-/// honoured when a digest is already pinned, so a misconfigured environment can
-/// never turn into an unverified install.
+/// A mirror override wins, but only for a target that already has a pinned
+/// digest — and [`verify_archive_digest`] still runs on whatever is downloaded,
+/// so relocating the download can never change what gets installed. Without an
+/// override, the published Office-owned URL is used. Without either, there is
+/// no URL and the install is refused.
 pub fn resolved_url(plan: &OfficePrivacyPlan) -> Option<String> {
-    if let Some(url) = plan.artifact_url {
-        return Some(url.to_string());
+    if plan.artifact_sha256.is_some()
+        && let Ok(url) = std::env::var(ENV_RUNTIME_URL_OVERRIDE)
+        && !url.is_empty()
+    {
+        return Some(url);
     }
-    match (
-        std::env::var(ENV_RUNTIME_URL_OVERRIDE),
-        plan.artifact_sha256,
-    ) {
-        (Ok(url), Some(_)) if !url.is_empty() => Some(url),
-        _ => None,
-    }
+    plan.artifact_url.map(str::to_string)
 }
 
 /// Refuse a customer download that has no published Office-owned artifact.
 pub fn require_published_artifact(plan: &OfficePrivacyPlan) -> Result<(), InstallError> {
-    match plan.support {
-        PlatformSupport::Unsupported => Err(InstallError::UnsupportedPlatform),
-        PlatformSupport::AwaitingOfficeArtifact if resolved_url(plan).is_none() => {
-            Err(InstallError::ArtifactNotPublished {
-                artifact_name: plan.artifact_name,
-            })
-        }
-        _ => Ok(()),
+    if plan.support == PlatformSupport::Unsupported {
+        return Err(InstallError::UnsupportedPlatform);
     }
+    // Fail closed: any supported target without a resolved URL refuses the
+    // download, whatever its recorded support level says. A `Published` plan
+    // that somehow lost its URL must not silently install from nowhere.
+    if resolved_url(plan).is_none() {
+        return Err(InstallError::ArtifactNotPublished {
+            artifact_name: plan.artifact_name,
+        });
+    }
+    Ok(())
 }
 
 // ── UTC timestamp ─────────────────────────────────────────────────
@@ -1221,7 +1264,7 @@ mod tests {
     #[test]
     fn windows_x64_selects_the_proven_contract_plus_app_local_vc_runtime() {
         let plan = windows_plan();
-        assert_eq!(plan.support, PlatformSupport::AwaitingOfficeArtifact);
+        assert_eq!(plan.support, PlatformSupport::Published);
         assert_eq!(plan.artifact_format, ArchiveFormat::Zip);
         assert!(
             plan.artifact_name
@@ -1803,41 +1846,112 @@ mod tests {
     // ── Published-artifact gate ───────────────────────────────────
 
     #[test]
-    fn unpublished_office_artifact_refuses_the_customer_download() {
+    #[test]
+    fn windows_is_published_with_the_real_office_owned_artifact() {
+        // Guards the exact published values. If this fails, the Windows
+        // installer is pointing somewhere other than the reviewed asset.
         let _guard = test_env_guard();
         // SAFETY: serialised by the env lock.
         unsafe {
             std::env::remove_var(ENV_RUNTIME_URL_OVERRIDE);
         }
+        let plan = windows_plan();
+        assert_eq!(plan.support, PlatformSupport::Published);
+        assert_eq!(plan.support.as_str(), "published");
+        assert_eq!(plan.artifact_name, WINDOWS_ARTIFACT_NAME);
+        assert_eq!(
+            plan.artifact_sha256,
+            Some("0bc2e0aa0177f2b82b3ae385f3adc1c65f515bac1730549840e118a34b08886b")
+        );
+        assert_eq!(plan.artifact_sha256.map(str::len), Some(64));
+        assert!(plan.artifact_sha256.unwrap().chars().all(|c| c.is_ascii_hexdigit()));
+
+        let url = plan.artifact_url.expect("Windows must have a published URL");
+        assert_eq!(url, WINDOWS_ARTIFACT_URL);
+        // The Office-owned repository, never the SafeAI Desktop runtime repo.
+        assert!(
+            url.starts_with("https://github.com/fabiofurlano/safeai-office-runtime/releases/download/")
+        );
+        assert!(!url.contains("safeai-runtime"), "must not depend on the Desktop runtime repo");
+        assert!(url.contains(OFFICE_PRIVACY_RELEASE_TAG), "{url}");
+        assert!(url.ends_with(WINDOWS_ARTIFACT_NAME), "{url}");
+        // A usable URL: no whitespace from any line continuation.
+        assert!(!url.chars().any(char::is_whitespace), "{url}");
+        assert_eq!(
+            url,
+            "https://github.com/fabiofurlano/safeai-office-runtime/releases/download/office-privacy-v1.0.0/safeai-office-privacy-runtime-windows-x64-v1.0.0.zip"
+        );
+
+        // The install gate now passes for Windows without any override.
+        assert_eq!(resolved_url(&plan).as_deref(), Some(WINDOWS_ARTIFACT_URL));
+        assert_eq!(require_published_artifact(&plan), Ok(()));
+
+        // A mirror override can relocate the download, but only because the
+        // digest is pinned — and the digest is still what decides acceptance.
+        // SAFETY: serialised by the env lock.
+        unsafe {
+            std::env::set_var(ENV_RUNTIME_URL_OVERRIDE, "https://mirror.invalid/same.zip");
+        }
+        assert_eq!(
+            resolved_url(&plan).as_deref(),
+            Some("https://mirror.invalid/same.zip"),
+            "a pinned-digest target may be mirrored"
+        );
+        assert_eq!(
+            plan.artifact_sha256,
+            Some(WINDOWS_ARTIFACT_SHA256),
+            "mirroring must not unpin the digest"
+        );
+        // SAFETY: serialised by the env lock.
+        unsafe {
+            std::env::remove_var(ENV_RUNTIME_URL_OVERRIDE);
+        }
+        assert_eq!(resolved_url(&plan).as_deref(), Some(WINDOWS_ARTIFACT_URL));
+    }
+
+    #[test]
+    fn unpublished_targets_still_refuse_the_customer_download() {
+        let _guard = test_env_guard();
+        // SAFETY: serialised by the env lock.
+        unsafe {
+            std::env::remove_var(ENV_RUNTIME_URL_OVERRIDE);
+        }
+        // Linux is proven but not published; macOS has never been proven.
         for target in [
-            OfficeTarget::new(OfficeOs::Windows, OfficeArch::X86_64),
             OfficeTarget::new(OfficeOs::Linux, OfficeArch::X86_64),
+            OfficeTarget::new(OfficeOs::Macos, OfficeArch::X86_64),
+            OfficeTarget::new(OfficeOs::Macos, OfficeArch::Aarch64),
         ] {
             let plan = plan_for(target);
-            assert_eq!(plan.support, PlatformSupport::AwaitingOfficeArtifact);
-            assert!(
-                plan.artifact_url.is_none(),
-                "no Office-owned URL is published yet for {target:?}"
+            assert_ne!(
+                plan.support,
+                PlatformSupport::Published,
+                "{target:?} must not claim to be published"
             );
+            assert!(plan.artifact_url.is_none(), "{target:?}");
+            assert_eq!(resolved_url(&plan), None, "{target:?}");
             assert!(
-                plan.artifact_sha256.is_none(),
-                "no Office-owned digest is published yet for {target:?}"
-            );
-            assert_eq!(resolved_url(&plan), None);
-            let err = require_published_artifact(&plan)
-                .expect_err("the customer download must be refused while unpublished");
-            assert_eq!(err.code(), "artifact_not_published");
-            assert!(
-                err.user_message().contains(plan.artifact_name),
-                "the refusal must name the exact asset to publish"
+                require_published_artifact(&plan).is_err(),
+                "{target:?} must refuse the download"
             );
         }
+
+        // Linux specifically: proven contract, withheld download, and the
+        // refusal names the asset that still needs publishing.
+        let linux = linux_plan();
+        assert_eq!(linux.support, PlatformSupport::AwaitingOfficeArtifact);
+        assert!(linux.artifact_sha256.is_none());
+        let err = require_published_artifact(&linux)
+            .expect_err("an unpublished target must refuse the download");
+        assert_eq!(err.code(), "artifact_not_published");
+        assert!(err.user_message().contains(linux.artifact_name));
     }
 
     #[test]
     fn runtime_url_override_is_ignored_until_a_digest_is_pinned() {
         let _guard = test_env_guard();
-        let plan = windows_plan();
+        // Linux is the still-unpublished lane, so it carries no pinned digest.
+        let plan = linux_plan();
         assert!(plan.artifact_sha256.is_none());
         // SAFETY: serialised by the env lock.
         unsafe {
@@ -1933,6 +2047,7 @@ mod tests {
         assert_eq!(OfficeArch::Aarch64.as_str(), "aarch64");
         assert_eq!(ArchiveFormat::Zip.as_str(), "zip");
         assert_eq!(ArchiveFormat::TarGz.as_str(), "tar.gz");
+        assert_eq!(PlatformSupport::Published.as_str(), "published");
         assert_eq!(
             PlatformSupport::AwaitingOfficeArtifact.as_str(),
             "awaiting_office_artifact"
