@@ -29,6 +29,9 @@ rand = "0.8"
 hex = "0.4"
 open = "5"
 ureq = { version = "3.2", features = ["json"] }
+# SHA-256 verification for the SafeAI Office Privacy Filter component installer.
+# Used only to verify downloaded runtime archives and the pinned model digest.
+sha2 = "0.10"
 
 [build-dependencies]
 walkdir = "2"

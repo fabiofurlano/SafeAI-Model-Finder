@@ -1792,3 +1792,108 @@ body::before {
     .gv-diagram-arrow { display: none; }
     .gv-diagram-step { width: 100%; }
 }
+
+/* ── SafeAI Suite → SafeAI Office Privacy Filter ───────────────
+   A separate product lane inside the same sidebar, visually set apart
+   from the model tools so it never reads as part of the model catalogue. */
+.nav-sep {
+    height: 1px;
+    margin: 12px 6px 10px;
+    background: var(--border);
+}
+.nav-group-label {
+    margin: 0 6px 6px;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+}
+
+.privacy-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-m);
+    box-shadow: var(--shadow-card);
+    padding: 22px;
+}
+.privacy-status-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+}
+.privacy-dot {
+    width: 10px;
+    height: 10px;
+    margin-top: 7px;
+    flex: none;
+    border-radius: 50%;
+    background: var(--text-faint);
+}
+.privacy-dot[data-state="installed"] { background: var(--success); }
+.privacy-dot[data-state="installing"] { background: var(--accent); }
+.privacy-dot[data-state="failed"] { background: var(--danger); }
+.privacy-dot[data-state="awaiting_artifact"] { background: var(--warn); }
+.privacy-dot[data-state="unsupported"] { background: var(--text-faint); }
+.privacy-status-text { min-width: 0; }
+.privacy-state {
+    margin: 0;
+    font-size: 1.06rem;
+    font-weight: 660;
+    color: var(--text);
+}
+.privacy-detail {
+    margin: 5px 0 0;
+    font-size: 0.9rem;
+    line-height: 1.5;
+    color: var(--text-muted);
+    overflow-wrap: anywhere;
+}
+
+.privacy-meta {
+    margin: 18px 0 0;
+    display: grid;
+    gap: 8px;
+    border-top: 1px solid var(--border);
+    padding-top: 16px;
+}
+.privacy-meta-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 16px;
+}
+.privacy-meta-row dt {
+    font-size: 0.82rem;
+    color: var(--text-faint);
+    flex: none;
+}
+.privacy-meta-row dd {
+    margin: 0;
+    font-size: 0.82rem;
+    color: var(--text-muted);
+    text-align: right;
+    overflow-wrap: anywhere;
+}
+.privacy-meta-row dd.mono { font-family: var(--mono); font-size: 0.78rem; }
+
+.privacy-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-top: 20px;
+}
+.privacy-progress { margin-top: 18px; }
+.privacy-progress-text {
+    margin: 8px 0 0;
+    font-size: 0.86rem;
+    color: var(--text-muted);
+    overflow-wrap: anywhere;
+}
+.privacy-note {
+    margin: 16px 0 0;
+    font-size: 0.84rem;
+    line-height: 1.55;
+    color: var(--text-faint);
+}

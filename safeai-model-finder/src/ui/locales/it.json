@@ -20,6 +20,8 @@
     "guide": "Guida",
     "performance": "Prestazioni",
     "planner": "Pianifica hardware",
+    "suiteGroup": "SafeAI Suite",
+    "privacy": "Filtro privacy Office",
     "modeAria": "Passa dalla modalità Semplice a quella Avanzata",
     "themeAria": "Passa dall'aspetto chiaro a quello scuro",
     "langAria": "Scegli la lingua",
@@ -32,6 +34,42 @@
   "mode": {
     "easy": "Semplice",
     "advanced": "Avanzata"
+  },
+  "privacy": {
+    "title": "Filtro privacy di SafeAI Office",
+    "subtitle": "Aggiunge a questo computer il componente privacy di SafeAI Office. È un componente della SafeAI Suite, non un modello.",
+    "checking": "Verifica in corso…",
+    "install": "Installa il filtro privacy",
+    "refresh": "Controlla di nuovo",
+    "note": "Questo componente viene installato nello spazio di SafeAI Office. È separato dai tuoi modelli e da SafeAI Desktop.",
+    "installed": "Il filtro privacy di SafeAI Office è installato.",
+    "started": "Installazione del filtro privacy di SafeAI Office…",
+    "state": {
+      "notInstalled": "Non installato",
+      "installed": "Installato",
+      "installing": "Installazione…",
+      "failed": "Installazione non riuscita",
+      "unsupported": "Non disponibile su questo computer",
+      "awaitingArtifact": "Non ancora disponibile"
+    },
+    "detail": {
+      "notInstalled": "Il componente privacy non è ancora su questo computer.",
+      "installed": "Pronto per essere usato da SafeAI Office.",
+      "installing": "Scaricamento e verifica del componente. Puoi lasciare aperta questa pagina.",
+      "failed": "Non è stato installato nulla. Puoi riprovare.",
+      "unsupported": "Non esiste un runtime privacy provato per questa piattaforma e questo processore, quindi non è ancora possibile installarlo.",
+      "awaitingArtifact": "Il runtime è pronto ma il file di rilascio di SafeAI Office non è ancora stato pubblicato, quindi per ora lo scaricamento è disattivato.",
+      "artifact": "In attesa di: {name}"
+    },
+    "meta": {
+      "component": "Componente",
+      "version": "Versione",
+      "platform": "Piattaforma",
+      "storage": "Installato in",
+      "model": "Modello privacy",
+      "runtime": "File del runtime"
+    },
+    "error": "Non è stato possibile installare il componente privacy: {msg}"
   },
   "overview": {
     "title1": "Trova il modello giusto",

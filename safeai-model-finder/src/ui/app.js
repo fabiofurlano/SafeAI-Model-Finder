@@ -225,6 +225,7 @@ function showView(view) {
     if (view === 'guide') renderGuide();
     if (view === 'performance') { loadBenchModelSelect(); renderBenchHistory(); }
     if (view === 'planner') renderPlannerSuggestions('');
+    if (view === 'privacy') loadPrivacyStatus();
     updateModeVisibility();
     window.scrollTo({ top: 0, behavior: 'smooth' });
 }
@@ -260,8 +261,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         loadOllamaStatus();
     });
 
+    setupPrivacy();
+
     loadSystemInfo();
     loadOllamaStatus();
+    // Loaded once at startup so the SafeAI Suite nav badge reflects the real
+    // installed state without the user having to open the view first. It is a
+    // purely local check and never contacts Ollama.
+    loadPrivacyStatus();
 });
 
 // ── Mode Toggle ───────────────────────────────────────────────
@@ -1845,6 +1852,151 @@ function renderGuide() {
                 <dd class="guide-term-def">${escapeHtml(e.def)}</dd>
             </details>`).join('')}</dl>`
         : `<p class="guide-empty">${escapeHtml(t('guide.noMatches', { q: document.getElementById('guideSearch').value.trim() }))}</p>`;
+}
+
+// ── SafeAI Suite → SafeAI Office Privacy Filter ──────────────
+// A separate install lane from the Ollama model tools. This surface never
+// checks for Ollama, never reads the model catalogue and never touches Browse
+// or Installed: the privacy filter is a SafeAI Suite component, not a model.
+const PRIVACY_STATE_KEYS = {
+    not_installed: 'notInstalled',
+    installed: 'installed',
+    installing: 'installing',
+    failed: 'failed',
+    unsupported: 'unsupported',
+    awaiting_artifact: 'awaitingArtifact',
+};
+
+let privacyPollTimer = null;
+
+function setupPrivacy() {
+    const installBtn = document.getElementById('privacyInstallBtn');
+    const refreshBtn = document.getElementById('privacyRefreshBtn');
+    if (!installBtn || !refreshBtn) return;
+    installBtn.addEventListener('click', startPrivacyInstall);
+    refreshBtn.addEventListener('click', loadPrivacyStatus);
+}
+
+function setPrivacyProgress(visible, pct, message) {
+    const wrap = document.getElementById('privacyProgress');
+    if (!wrap) return;
+    wrap.hidden = !visible;
+    const value = Math.max(0, Math.min(100, Number(pct) || 0));
+    const fill = document.getElementById('privacyProgressFill');
+    const bar = document.getElementById('privacyProgressBar');
+    const text = document.getElementById('privacyProgressText');
+    if (fill) fill.style.width = `${value}%`;
+    if (bar) bar.setAttribute('aria-valuenow', String(Math.round(value)));
+    if (text) text.textContent = message || '';
+}
+
+function renderPrivacyMeta(data) {
+    const meta = document.getElementById('privacyMeta');
+    if (!meta) return;
+    const rows = [
+        ['privacy.meta.component', data.component_id],
+        ['privacy.meta.version', data.component_version],
+        ['privacy.meta.platform', `${data.platform || '—'} · ${data.architecture || '—'}`],
+    ];
+    if (data.installed && data.manifest) {
+        rows.push(['privacy.meta.storage', data.storage_root]);
+        rows.push(['privacy.meta.model', data.manifest.model.relative_path]);
+        rows.push(['privacy.meta.runtime', String((data.manifest.runtime.required_files || []).length)]);
+    }
+    meta.innerHTML = rows.map(([key, value]) =>
+        `<div class="privacy-meta-row"><dt>${escapeHtml(t(key))}</dt><dd class="mono">${escapeHtml(String(value === undefined || value === null || value === '' ? '—' : value))}</dd></div>`
+    ).join('');
+}
+
+function renderPrivacyStatus(data) {
+    const stateEl = document.getElementById('privacyState');
+    const detailEl = document.getElementById('privacyDetail');
+    const dot = document.getElementById('privacyDot');
+    const installBtn = document.getElementById('privacyInstallBtn');
+    const badge = document.getElementById('privacyBadge');
+    if (!stateEl) return;
+
+    const key = PRIVACY_STATE_KEYS[data.state] || 'failed';
+    stateEl.textContent = t(`privacy.state.${key}`);
+    let detail = t(`privacy.detail.${key}`);
+    // When a proven runtime exists but its Office-owned release file is not
+    // published yet, say exactly which file we are waiting for.
+    if (data.state === 'awaiting_artifact' && data.artifact) {
+        detail += ` ${t('privacy.detail.artifact', { name: data.artifact.name })}`;
+    }
+    detailEl.textContent = detail;
+    if (dot) dot.dataset.state = data.state;
+    if (badge) {
+        badge.hidden = !data.installed;
+        badge.textContent = data.installed ? '✓' : '';
+    }
+
+    // The install action is only offered when a published, verified Office-owned
+    // artifact exists. An unsupported platform, or a target whose asset is not
+    // published yet, explains itself instead of offering a button that cannot work.
+    const canInstall = data.state === 'not_installed'
+        && data.artifact
+        && data.artifact.download_available === true;
+    if (installBtn) installBtn.hidden = !canInstall;
+
+    renderPrivacyMeta(data);
+}
+
+async function loadPrivacyStatus() {
+    const stateEl = document.getElementById('privacyState');
+    if (!stateEl) return;
+    try {
+        renderPrivacyStatus(await apiGet('/safeai/office/privacy/status'));
+    } catch (e) {
+        stateEl.textContent = t('privacy.state.failed');
+        document.getElementById('privacyDetail').textContent = localizeError(e.message);
+        const dot = document.getElementById('privacyDot');
+        if (dot) dot.dataset.state = 'failed';
+    }
+}
+
+async function startPrivacyInstall() {
+    const installBtn = document.getElementById('privacyInstallBtn');
+    if (installBtn) installBtn.disabled = true;
+    try {
+        const res = await apiPost('/safeai/office/privacy/install', {});
+        if (res.already_installed) {
+            showSuccess(t('privacy.installed'));
+            await loadPrivacyStatus();
+            return;
+        }
+        showSuccess(t('privacy.started'));
+        pollPrivacyInstall(res.id);
+    } catch (e) {
+        showError(t('privacy.error', { msg: localizeError(e.message) }));
+        await loadPrivacyStatus();
+    } finally {
+        if (installBtn) installBtn.disabled = false;
+    }
+}
+
+function pollPrivacyInstall(id) {
+    clearTimeout(privacyPollTimer);
+    setPrivacyProgress(true, 0, t('privacy.started'));
+    const tick = async () => {
+        try {
+            const st = await apiGet(`/safeai/office/privacy/install/${encodeURIComponent(id)}`);
+            setPrivacyProgress(true, st.progress_pct, st.message);
+            if (st.status === 'installing') {
+                privacyPollTimer = setTimeout(tick, 500);
+                return;
+            }
+            setPrivacyProgress(false, 0, '');
+            if (st.status === 'done') showSuccess(t('privacy.installed'));
+            else showError(t('privacy.error', { msg: localizeError(st.message) }));
+            await loadPrivacyStatus();
+        } catch (e) {
+            setPrivacyProgress(false, 0, '');
+            showError(t('privacy.error', { msg: localizeError(e.message) }));
+            await loadPrivacyStatus();
+        }
+    };
+    tick();
 }
 
 // ── Helpers ──────────────────────────────────────────────────

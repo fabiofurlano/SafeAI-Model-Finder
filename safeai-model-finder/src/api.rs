@@ -41,6 +41,25 @@ pub struct AppState {
     pub download_counter: std::sync::atomic::AtomicU32,
     pub active_benchmark: tokio::sync::RwLock<Option<ActiveBenchmark>>,
     pub benchmark_counter: std::sync::atomic::AtomicU32,
+    // SafeAI Suite → SafeAI Office Privacy Filter. Deliberately a separate slot
+    // from `active_download`: the privacy component is not an Ollama model and
+    // must install whether or not Ollama is running or busy (BUG-0006).
+    pub active_privacy_install: tokio::sync::RwLock<Option<ActivePrivacyInstall>>,
+    pub privacy_install_counter: std::sync::atomic::AtomicU32,
+}
+
+/// Progress of an in-flight SafeAI Office Privacy Filter installation.
+///
+/// Transient by design: this state lives in memory and in the UI only. The
+/// durable record of a completed installation is the component manifest.
+pub struct ActivePrivacyInstall {
+    pub id: String,
+    pub component_id: String,
+    pub status: String, // installing | done | error | blocked
+    pub stage: String,  // preparing | downloading | verifying | promoting | done
+    pub progress_pct: f64,
+    pub message: String,
+    pub error_code: Option<String>,
 }
 
 pub struct ActiveBenchmark {
@@ -257,6 +276,21 @@ pub fn build_router(state: Arc<AppState>) -> Router {
         .route("/api/benchmarks", axum::routing::post(start_benchmark))
         .route("/api/benchmarks/{id}", get(benchmark_status))
         .route("/api/benchmarks/history", get(benchmark_history))
+        // SafeAI Suite → SafeAI Office Privacy Filter. Kept under its own
+        // prefix so it can never be confused with the Ollama model catalogue
+        // (`/api/pulls`, `/api/ollama/*`).
+        .route(
+            "/api/safeai/office/privacy/status",
+            get(office_privacy_status),
+        )
+        .route(
+            "/api/safeai/office/privacy/install",
+            axum::routing::post(start_office_privacy_install),
+        )
+        .route(
+            "/api/safeai/office/privacy/install/{id}",
+            get(office_privacy_install_status),
+        )
         .route("/api/plan", get(model_plan))
         .route("/api/plan/search", get(plan_search))
         .route("/api/models/filter-options", get(filter_options))
@@ -1497,6 +1531,442 @@ async fn pull_status(
     }
 }
 
+// ── SafeAI Suite → SafeAI Office Privacy Filter ─────────────────
+//
+// A separate install lane from Ollama models. Nothing in this section calls
+// `OllamaProvider`, probes the Ollama daemon, or reads Ollama storage: the
+// Office Privacy Filter is a SafeAI Suite component, not an Ollama model, and
+// the normal Model Finder path (Model Finder → Ollama → Desktop/Office) is
+// unchanged.
+
+use crate::office_privacy::{self, InstallError, OfficePrivacyState};
+
+/// The approved artifact contract for the machine we are running on.
+fn office_privacy_plan() -> office_privacy::OfficePrivacyPlan {
+    office_privacy::plan_for(office_privacy::OfficeTarget::detect())
+}
+
+/// Full status payload for the SafeAI Suite / Office Privacy Filter surface.
+///
+/// Contains no absolute paths and no download URLs: the durable root is
+/// reported as a short display string, and artifact identity is reported as a
+/// name only, so nothing here can be mistaken for a usable download link.
+fn office_privacy_status_payload() -> serde_json::Value {
+    let plan = office_privacy_plan();
+    let root = office_privacy::office_privacy_root();
+    let (state, missing) = office_privacy::effective_state(root.as_deref(), &plan);
+    let manifest = root
+        .as_deref()
+        .and_then(office_privacy::read_manifest)
+        .map(|m| serde_json::to_value(m).unwrap_or(serde_json::Value::Null));
+
+    serde_json::json!({
+        "component_id": office_privacy::COMPONENT_ID,
+        "component_version": office_privacy::COMPONENT_VERSION,
+        "state": state.as_str(),
+        "support": plan.support.as_str(),
+        "support_detail": plan.support_detail,
+        "platform": plan.target.os.as_str(),
+        "architecture": plan.target.arch.as_str(),
+        "artifact": {
+            "name": plan.artifact_name,
+            "format": plan.artifact_format.as_str(),
+            // No URL and no digest are published for any target yet, so the
+            // customer download stays disabled rather than pointing at a
+            // placeholder or at the SafeAI Desktop runtime repository.
+            "published": plan.artifact_url.is_some(),
+            "download_available": office_privacy::resolved_url(&plan).is_some(),
+        },
+        "model": {
+            "repo": office_privacy::MODEL_REPO,
+            "file": office_privacy::MODEL_FILE,
+            "sha256": office_privacy::MODEL_SHA256,
+        },
+        "installed": state == OfficePrivacyState::Installed,
+        "missing_files": missing,
+        "manifest": manifest,
+        "provenance": plan.provenance,
+        "storage_root": root
+            .as_deref()
+            .map(|p| p.to_string_lossy().to_string())
+            .unwrap_or_default(),
+        "required_runtime_files": plan.required_runtime_files,
+    })
+}
+
+async fn office_privacy_status(
+    State(_state): State<Arc<AppState>>,
+    ConnectInfo(addr): ConnectInfo<SocketAddr>,
+) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
+    if !addr.ip().is_loopback() {
+        return Err((
+            StatusCode::FORBIDDEN,
+            Json(serde_json::json!({ "error": "Office Privacy status restricted to localhost" })),
+        ));
+    }
+    Ok(Json(office_privacy_status_payload()))
+}
+
+async fn office_privacy_install_status(
+    State(state): State<Arc<AppState>>,
+    ConnectInfo(addr): ConnectInfo<SocketAddr>,
+    Path(id): Path<String>,
+) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
+    if !addr.ip().is_loopback() {
+        return Err((
+            StatusCode::FORBIDDEN,
+            Json(serde_json::json!({ "error": "Install status restricted to localhost" })),
+        ));
+    }
+
+    let guard = state.active_privacy_install.read().await;
+    match guard.as_ref() {
+        Some(a) if a.id == id => Ok(Json(serde_json::json!({
+            "id": a.id,
+            "component_id": a.component_id,
+            "status": a.status,
+            "stage": a.stage,
+            "progress_pct": a.progress_pct,
+            "message": a.message,
+            "error_code": a.error_code,
+        }))),
+        _ => Err((
+            StatusCode::NOT_FOUND,
+            Json(serde_json::json!({ "error": format!("no install with id '{}'", id) })),
+        )),
+    }
+}
+
+/// Stage updates sent from the blocking install worker to the async task that
+/// owns the shared state slot.
+struct PrivacyStageUpdate {
+    status: &'static str,
+    stage: &'static str,
+    progress_pct: f64,
+    message: String,
+    error_code: Option<String>,
+}
+
+async fn start_office_privacy_install(
+    State(state): State<Arc<AppState>>,
+    ConnectInfo(addr): ConnectInfo<SocketAddr>,
+    headers: HeaderMap,
+    axum::extract::RawQuery(raw_query): axum::extract::RawQuery,
+) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
+    if !addr.ip().is_loopback() {
+        return Err((
+            StatusCode::FORBIDDEN,
+            Json(serde_json::json!({ "error": "Install restricted to localhost" })),
+        ));
+    }
+    crate::security::require_session(&headers, raw_query.as_deref(), &state.session_token)?;
+
+    let plan = office_privacy_plan();
+
+    // Published-artifact gate. This runs before any task state exists, so an
+    // unavailable component can never leave a stuck "installing" record.
+    if let Err(e) = office_privacy::require_published_artifact(&plan) {
+        let status = match e {
+            InstallError::UnsupportedPlatform => StatusCode::CONFLICT,
+            _ => StatusCode::SERVICE_UNAVAILABLE,
+        };
+        return Err((
+            status,
+            Json(serde_json::json!({
+                "error": e.user_message(),
+                "code": e.code(),
+                "support": plan.support.as_str(),
+                "platform": plan.target.os.as_str(),
+                "architecture": plan.target.arch.as_str(),
+                "artifact_name": plan.artifact_name,
+            })),
+        ));
+    }
+
+    let Some(root) = office_privacy::office_privacy_root() else {
+        return Err((
+            StatusCode::CONFLICT,
+            Json(serde_json::json!({
+                "error": InstallError::UnsupportedPlatform.user_message(),
+                "code": "unsupported_platform",
+            })),
+        ));
+    };
+
+    if office_privacy::assess(Some(&root), &plan).0 == OfficePrivacyState::Installed {
+        return Ok(Json(serde_json::json!({
+            "status": "installed",
+            "already_installed": true,
+            "component_id": office_privacy::COMPONENT_ID,
+        })));
+    }
+
+    // Conflict check and slot claim happen under ONE write guard. Splitting
+    // them into a read check plus a later write would leave a gap in which two
+    // concurrent requests both observe an idle slot and both start an install.
+    let id = {
+        let n = state
+            .privacy_install_counter
+            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        format!("office-privacy-{n}")
+    };
+    {
+        let mut slot = state.active_privacy_install.write().await;
+        if let Some(a) = slot.as_ref()
+            && a.status == "installing"
+        {
+            return Err((
+                StatusCode::CONFLICT,
+                Json(serde_json::json!({
+                    "error": "A SafeAI Office Privacy Filter install is already in progress"
+                })),
+            ));
+        }
+        *slot = Some(ActivePrivacyInstall {
+            id: id.clone(),
+            component_id: office_privacy::COMPONENT_ID.to_string(),
+            status: "installing".to_string(),
+            stage: "preparing".to_string(),
+            progress_pct: 0.0,
+            message: "Preparing the SafeAI Office Privacy Filter".to_string(),
+            error_code: None,
+        });
+    }
+
+    let (update_tx, mut update_rx) =
+        tokio::sync::mpsc::channel::<PrivacyStageUpdate>(64);
+    let install_id = id.clone();
+    let root_for_worker = root.clone();
+    let plan_for_worker = plan.clone();
+
+    tokio::task::spawn_blocking(move || {
+        run_office_privacy_install(&root_for_worker, &plan_for_worker, &update_tx);
+    });
+
+    let state_bg = Arc::clone(&state);
+    tokio::task::spawn(async move {
+        while let Some(update) = update_rx.recv().await {
+            let mut slot = state_bg.active_privacy_install.write().await;
+            let Some(a) = slot.as_mut() else { break };
+            if a.id != install_id {
+                break;
+            }
+            a.status = update.status.to_string();
+            a.stage = update.stage.to_string();
+            a.progress_pct = update.progress_pct;
+            a.message = update.message;
+            a.error_code = update.error_code;
+        }
+        // Defensive: never leave the slot stuck in "installing" if the worker
+        // vanished without a terminal update.
+        let mut slot = state_bg.active_privacy_install.write().await;
+        if let Some(a) = slot.as_mut()
+            && a.id == install_id
+            && a.status == "installing"
+        {
+            a.status = "error".to_string();
+            a.stage = "done".to_string();
+            a.message = "Install stopped unexpectedly".to_string();
+            a.error_code = Some("io_error".to_string());
+        }
+    });
+
+    Ok(Json(serde_json::json!({
+        "id": id,
+        "component_id": office_privacy::COMPONENT_ID,
+        "status": "installing",
+        "platform": plan.target.os.as_str(),
+        "architecture": plan.target.arch.as_str(),
+    })))
+}
+
+type PrivacySender = tokio::sync::mpsc::Sender<PrivacyStageUpdate>;
+
+/// Push one stage update to the state-owning async task.
+fn privacy_send(
+    tx: &PrivacySender,
+    status: &'static str,
+    stage: &'static str,
+    progress_pct: f64,
+    message: String,
+    error_code: Option<String>,
+) {
+    let _ = tx.blocking_send(PrivacyStageUpdate {
+        status,
+        stage,
+        progress_pct,
+        message,
+        error_code,
+    });
+}
+
+/// Discard staging and report a terminal failure.
+fn privacy_fail(tx: &PrivacySender, staging: &std::path::Path, e: InstallError) {
+    let _ = std::fs::remove_dir_all(staging);
+    privacy_send(
+        tx,
+        "error",
+        "done",
+        0.0,
+        e.user_message(),
+        Some(e.code().to_string()),
+    );
+}
+
+/// Blocking install worker: download → verify → extract → download model →
+/// verify → promote → manifest.
+///
+/// Runs on a blocking thread because the HTTP client is synchronous. Every
+/// failure discards staging and reports a machine code; partial state is never
+/// promoted and no manifest is ever written on a failed install.
+fn run_office_privacy_install(
+    root: &std::path::Path,
+    plan: &office_privacy::OfficePrivacyPlan,
+    tx: &PrivacySender,
+) {
+    let Some(url) = office_privacy::resolved_url(plan) else {
+        privacy_send(
+            tx,
+            "blocked",
+            "done",
+            0.0,
+            InstallError::ArtifactNotPublished {
+                artifact_name: plan.artifact_name,
+            }
+            .user_message(),
+            Some("artifact_not_published".to_string()),
+        );
+        return;
+    };
+
+    // Fresh staging each run; a leftover directory from an earlier attempt is
+    // never reused.
+    let staging = office_privacy::staging_dir(root, &format!("p{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&staging);
+    if let Err(e) = std::fs::create_dir_all(&staging) {
+        privacy_fail(tx, &staging, InstallError::Io(e.to_string()));
+        return;
+    }
+
+    // 1. Runtime archive.
+    privacy_send(
+        tx,
+        "installing",
+        "downloading",
+        1.0,
+        "Downloading the SafeAI Office Privacy runtime".to_string(),
+        None,
+    );
+    let archive = staging.join(format!("runtime.{}", plan.artifact_format.as_str()));
+    let archive_digest = match office_privacy::download_archive(
+        &url,
+        &archive,
+        plan.artifact_sha256,
+        |done, total| {
+            let pct = match total {
+                Some(total) if total > 0 => (done as f64 / total as f64) * 55.0,
+                _ => 5.0,
+            };
+            privacy_send(
+                tx,
+                "installing",
+                "downloading",
+                pct,
+                format!("Downloading the SafeAI Office Privacy runtime ({pct:.0}%)"),
+                None,
+            );
+        },
+    ) {
+        Ok(digest) => digest,
+        Err(e) => {
+            privacy_fail(tx, &staging, e);
+            return;
+        }
+    };
+
+    // 2. Unpack into the component layout.
+    privacy_send(
+        tx,
+        "installing",
+        "verifying",
+        60.0,
+        "Unpacking the verified runtime".to_string(),
+        None,
+    );
+    let extract_root = office_privacy::archive_extract_root(&staging, plan);
+    if let Err(e) = office_privacy::extract_archive(&archive, plan.artifact_format, &extract_root) {
+        privacy_fail(tx, &staging, e);
+        return;
+    }
+    let _ = std::fs::remove_file(&archive);
+
+    // 3. Privacy filter model (public, digest-pinned).
+    privacy_send(
+        tx,
+        "installing",
+        "downloading",
+        65.0,
+        "Downloading the multilingual privacy filter model".to_string(),
+        None,
+    );
+    let model_path = staging.join(office_privacy::relative_model_path());
+    if let Some(parent) = model_path.parent()
+        && let Err(e) = std::fs::create_dir_all(parent)
+    {
+        privacy_fail(tx, &staging, InstallError::Io(e.to_string()));
+        return;
+    }
+    if let Err(e) = office_privacy::download_archive(
+        &office_privacy::model_url(),
+        &model_path,
+        Some(office_privacy::MODEL_SHA256),
+        |done, total| {
+            let pct = match total {
+                Some(total) if total > 0 => 65.0 + (done as f64 / total as f64) * 25.0,
+                _ => 70.0,
+            };
+            privacy_send(
+                tx,
+                "installing",
+                "downloading",
+                pct,
+                format!("Downloading the privacy filter model ({pct:.0}%)"),
+                None,
+            );
+        },
+    ) {
+        privacy_fail(tx, &staging, e);
+        return;
+    }
+
+    // 4. Verify every required file, promote atomically, write the manifest.
+    privacy_send(
+        tx,
+        "installing",
+        "promoting",
+        92.0,
+        "Activating the verified component".to_string(),
+        None,
+    );
+    match office_privacy::finalize_install(
+        root,
+        &staging,
+        plan,
+        &archive_digest,
+        office_privacy::now_rfc3339(),
+    ) {
+        Ok(_) => privacy_send(
+            tx,
+            "done",
+            "done",
+            100.0,
+            "SafeAI Office Privacy Filter installed".to_string(),
+            None,
+        ),
+        Err(e) => privacy_fail(tx, &staging, e),
+    }
+}
+
 // ── Performance (local benchmarking) ───────────────────────────
 
 /// Ollama base URL for benchmark requests. Follows the same convention as
@@ -2278,6 +2748,8 @@ mod tests {
             download_counter: std::sync::atomic::AtomicU32::new(0),
             active_benchmark: tokio::sync::RwLock::new(None),
             benchmark_counter: std::sync::atomic::AtomicU32::new(0),
+            active_privacy_install: tokio::sync::RwLock::new(None),
+            privacy_install_counter: std::sync::atomic::AtomicU32::new(0),
         })
     }
 
@@ -2836,6 +3308,248 @@ mod tests {
         (status, body)
     }
 
+    // ── SafeAI Suite → SafeAI Office Privacy Filter ────────────
+
+    fn privacy_request(method: &str, uri: &str, with_token: bool) -> Request<Body> {
+        let mut builder = Request::builder().method(method).uri(uri);
+        if with_token {
+            builder = builder.header("authorization", format!("Bearer {TOKEN}"));
+        }
+        let mut req = builder.body(Body::empty()).unwrap();
+        req.extensions_mut()
+            .insert(ConnectInfo(SocketAddr::from(([127, 0, 0, 1], 45678))));
+        req
+    }
+
+    #[tokio::test]
+    async fn office_privacy_status_is_independent_of_ollama() {
+        let _guard = ENV_LOCK.lock().unwrap();
+        // Point Ollama at a port nothing is listening on. The privacy surface
+        // must be completely unaffected: the Office Privacy Filter is not an
+        // Ollama model, so its status can never depend on the Ollama daemon
+        // (the normal Model Finder Ollama prerequisite does not apply here).
+        // SAFETY: serialised by ENV_LOCK.
+        unsafe {
+            std::env::set_var("OLLAMA_HOST", "http://127.0.0.1:1");
+        }
+
+        let router = build_router(test_state());
+        let (status, body) = respond(
+            router.clone(),
+            privacy_request("GET", "/api/safeai/office/privacy/status", false),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "{body}");
+        assert_eq!(body["component_id"], crate::office_privacy::COMPONENT_ID);
+        assert_eq!(body["component_version"], crate::office_privacy::COMPONENT_VERSION);
+        assert_eq!(body["installed"], false);
+        assert_eq!(body["model"]["sha256"], crate::office_privacy::MODEL_SHA256);
+
+        // Ollama is genuinely unreachable, yet the privacy status is fine.
+        let (ollama_status, _) = respond(
+            router,
+            privacy_request("GET", "/api/ollama/status", false),
+        )
+        .await;
+        assert_eq!(
+            ollama_status,
+            StatusCode::OK,
+            "sanity check: the Ollama probe itself still answers, just reports unavailable"
+        );
+
+        // SAFETY: serialised by ENV_LOCK.
+        unsafe {
+            std::env::remove_var("OLLAMA_HOST");
+        }
+    }
+
+    #[tokio::test]
+    async fn office_privacy_status_does_not_mix_with_the_model_catalogue() {
+        let _guard = ENV_LOCK.lock().unwrap();
+        let router = build_router(test_state());
+        let (status, body) = respond(
+            router,
+            privacy_request("GET", "/api/safeai/office/privacy/status", false),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "{body}");
+
+        // None of the Ollama / Hugging Face catalogue vocabulary may appear in
+        // this payload: the privacy component has its own lane.
+        let serialized = body.to_string().to_lowercase();
+        for forbidden in ["ollama", "ollama_tag", "hf.co", "quant", "pulls"] {
+            assert!(
+                !serialized.contains(forbidden),
+                "privacy status must not contain {forbidden:?}: {serialized}"
+            );
+        }
+        // Artifact identity is a name only — never a usable download URL.
+        assert_eq!(body["artifact"]["published"], false);
+        assert_eq!(body["artifact"]["download_available"], false);
+        let artifact_name = body["artifact"]["name"].as_str().unwrap();
+        assert!(
+            artifact_name.starts_with("safeai-office-privacy-runtime-"),
+            "{artifact_name}"
+        );
+        assert!(!serialized.contains("http://") && !serialized.contains("https://"));
+    }
+
+    #[tokio::test]
+    async fn office_privacy_states_cover_every_user_visible_case() {
+        let _guard = ENV_LOCK.lock().unwrap();
+        let router = build_router(test_state());
+        let (status, body) = respond(
+            router,
+            privacy_request("GET", "/api/safeai/office/privacy/status", false),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "{body}");
+
+        let state = body["state"].as_str().unwrap();
+        assert!(
+            matches!(
+                state,
+                "not_installed" | "installed" | "unsupported" | "awaiting_artifact"
+            ),
+            "unexpected state {state}"
+        );
+        let support = body["support"].as_str().unwrap();
+        assert!(
+            matches!(support, "awaiting_office_artifact" | "unsupported"),
+            "unexpected support {support}"
+        );
+        // Detail text always explains the state to a non-technical user.
+        assert!(!body["support_detail"].as_str().unwrap().trim().is_empty());
+        assert!(!body["platform"].as_str().unwrap().is_empty());
+        assert!(!body["architecture"].as_str().unwrap().is_empty());
+    }
+
+    #[tokio::test]
+    async fn office_privacy_install_requires_the_session_token() {
+        let _guard = ENV_LOCK.lock().unwrap();
+        let router = build_router(test_state());
+        let (status, body) = respond(
+            router,
+            privacy_request("POST", "/api/safeai/office/privacy/install", false),
+        )
+        .await;
+        assert_eq!(status, StatusCode::UNAUTHORIZED, "{body}");
+        assert!(body["error"].is_string());
+    }
+
+    #[tokio::test]
+    async fn office_privacy_install_is_refused_while_the_artifact_is_unpublished() {
+        let _guard = ENV_LOCK.lock().unwrap();
+        // SAFETY: serialised by ENV_LOCK.
+        unsafe {
+            std::env::remove_var(crate::office_privacy::ENV_RUNTIME_URL_OVERRIDE);
+        }
+        let router = build_router(test_state());
+        let (status, body) = respond(
+            router,
+            privacy_request("POST", "/api/safeai/office/privacy/install", true),
+        )
+        .await;
+
+        // 503 when a proven runtime exists but its Office-owned asset is not
+        // published; 409 on a platform with no proven runtime at all.
+        assert!(
+            status == StatusCode::SERVICE_UNAVAILABLE || status == StatusCode::CONFLICT,
+            "unexpected status {status}: {body}"
+        );
+        assert!(
+            matches!(
+                body["code"].as_str(),
+                Some("artifact_not_published") | Some("unsupported_platform")
+            ),
+            "unexpected code: {body}"
+        );
+        // The refusal names the exact asset the customer download is waiting on.
+        let name = body["artifact_name"].as_str().unwrap();
+        assert!(name.starts_with("safeai-office-privacy-runtime-"), "{name}");
+        assert!(body["error"].as_str().unwrap().contains(name));
+    }
+
+    #[tokio::test]
+    async fn office_privacy_install_status_404s_for_an_unknown_id() {
+        let _guard = ENV_LOCK.lock().unwrap();
+        let router = build_router(test_state());
+        let (status, body) = respond(
+            router,
+            privacy_request(
+                "GET",
+                "/api/safeai/office/privacy/install/office-privacy-999",
+                false,
+            ),
+        )
+        .await;
+        assert_eq!(status, StatusCode::NOT_FOUND, "{body}");
+        assert!(body["error"].as_str().unwrap().contains("office-privacy-999"));
+    }
+
+    #[tokio::test]
+    async fn a_refused_privacy_install_never_starts_a_task() {
+        let _guard = ENV_LOCK.lock().unwrap();
+        // SAFETY: serialised by ENV_LOCK.
+        unsafe {
+            std::env::remove_var(crate::office_privacy::ENV_RUNTIME_URL_OVERRIDE);
+        }
+        let state = test_state();
+        let router = build_router(Arc::clone(&state));
+        let _ = respond(
+            router,
+            privacy_request("POST", "/api/safeai/office/privacy/install", true),
+        )
+        .await;
+
+        // A refused install must leave no "installing" record behind, so the
+        // UI cannot get stuck on a spinner for a component that cannot install.
+        assert!(
+            state.active_privacy_install.read().await.is_none(),
+            "a blocked install must not create task state"
+        );
+    }
+
+    #[tokio::test]
+    async fn ordinary_ollama_download_path_is_unchanged_by_the_privacy_lane() {
+        let _guard = ENV_LOCK.lock().unwrap();
+        let (addr, mock) = spawn_mock(&["qwen2.5:1.5b"], 200);
+        bench_env(addr);
+        let router = build_router(test_state());
+
+        // The normal model download path still works end to end. The pull is
+        // dispatched on a background thread, so poll for the mock to see it —
+        // the same pattern the benchmark tests use.
+        let (status, body) = respond(router.clone(), pull_request("qwen2.5:1.5b", true)).await;
+        assert_eq!(status, StatusCode::OK, "{body}");
+        assert_eq!(body["status"], "pulling");
+
+        let mut pulls = 0;
+        for _ in 0..80 {
+            pulls = mock.lock().unwrap().pull_calls;
+            if pulls >= 1 {
+                break;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(25)).await;
+        }
+        assert_eq!(pulls, 1, "the normal Ollama download path still reaches Ollama");
+
+        // The privacy endpoint answers without touching Ollama at all, and
+        // leaves the model download lane untouched.
+        let (privacy_status, privacy_body) = respond(
+            router,
+            privacy_request("GET", "/api/safeai/office/privacy/status", false),
+        )
+        .await;
+        assert_eq!(privacy_status, StatusCode::OK, "{privacy_body}");
+        assert_eq!(privacy_body["installed"], false);
+        assert_eq!(
+            mock.lock().unwrap().pull_calls,
+            pulls,
+            "the privacy lane must not trigger any Ollama pull"
+        );
+    }
+
     fn bench_env(addr: SocketAddr) -> std::path::PathBuf {
         // SAFETY: serialised by ENV_LOCK (see with_mock).
         unsafe {
@@ -2863,6 +3577,8 @@ mod tests {
             download_counter: std::sync::atomic::AtomicU32::new(0),
             active_benchmark: tokio::sync::RwLock::new(None),
             benchmark_counter: std::sync::atomic::AtomicU32::new(0),
+            active_privacy_install: tokio::sync::RwLock::new(None),
+            privacy_install_counter: std::sync::atomic::AtomicU32::new(0),
         })
     }
 

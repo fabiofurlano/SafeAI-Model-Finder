@@ -20,6 +20,8 @@
     "guide": "Learn",
     "performance": "Performance",
     "planner": "Hardware Planner",
+    "suiteGroup": "SafeAI Suite",
+    "privacy": "Office Privacy Filter",
     "modeAria": "Switch between Easy and Advanced mode",
     "themeAria": "Switch between light and dark appearance",
     "langAria": "Choose language",
@@ -32,6 +34,42 @@
   "mode": {
     "easy": "Easy",
     "advanced": "Advanced"
+  },
+  "privacy": {
+    "title": "SafeAI Office Privacy Filter",
+    "subtitle": "Adds the SafeAI Office privacy component to this computer. It is a SafeAI Suite component, not a model.",
+    "checking": "Checking…",
+    "install": "Install privacy filter",
+    "refresh": "Check again",
+    "note": "This component is installed into SafeAI Office's own storage. It is separate from your models and from SafeAI Desktop.",
+    "installed": "The SafeAI Office Privacy Filter is installed.",
+    "started": "Installing the SafeAI Office Privacy Filter…",
+    "state": {
+      "notInstalled": "Not installed",
+      "installed": "Installed",
+      "installing": "Installing…",
+      "failed": "Installation failed",
+      "unsupported": "Not available on this computer",
+      "awaitingArtifact": "Not available yet"
+    },
+    "detail": {
+      "notInstalled": "The privacy component is not on this computer yet.",
+      "installed": "Ready for SafeAI Office to use.",
+      "installing": "Downloading and verifying the component. You can leave this page open.",
+      "failed": "Nothing was installed. You can try again.",
+      "unsupported": "There is no proven privacy runtime for this platform and processor, so it cannot be installed yet.",
+      "awaitingArtifact": "The runtime is ready but the SafeAI Office release file has not been published yet, so downloading is switched off for now.",
+      "artifact": "Waiting for: {name}"
+    },
+    "meta": {
+      "component": "Component",
+      "version": "Version",
+      "platform": "Platform",
+      "storage": "Installed in",
+      "model": "Privacy model",
+      "runtime": "Runtime files"
+    },
+    "error": "The privacy component could not be installed: {msg}"
   },
   "overview": {
     "title1": "Find the right model",

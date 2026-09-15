@@ -70,6 +70,19 @@
                     </span>
                     <span class="nav-label" data-i18n="nav.guide">Learn</span>
                 </button>
+
+                <!-- SafeAI Suite — deliberately separated from the model tools
+                     above: these are a different product lane, not Ollama
+                     models and not part of the model catalogue. -->
+                <div class="nav-sep" role="presentation"></div>
+                <p class="nav-group-label" data-i18n="nav.suiteGroup">SafeAI Suite</p>
+                <button class="nav-item" data-view="privacy" type="button">
+                    <span class="nav-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path><path d="M9.5 12l1.8 1.8 3.4-3.6"></path></svg>
+                    </span>
+                    <span class="nav-label" data-i18n="nav.privacy">Office Privacy Filter</span>
+                    <span class="nav-count" id="privacyBadge" hidden></span>
+                </button>
             </nav>
 
             <div class="sidebar-foot">
@@ -449,6 +462,42 @@
                 </div>
 
                 <div id="planResult" class="plan-result" hidden aria-live="polite"></div>
+            </section>
+
+            <!-- SafeAI Suite → SafeAI Office Privacy Filter.
+                 A separate surface: it never lists Ollama models, never shows the
+                 Hugging Face catalogue, and never mixes with Browse / Installed. -->
+            <section class="view" id="view-privacy" hidden aria-labelledby="privacyTitle">
+                <div class="view-head">
+                    <h2 id="privacyTitle" data-i18n="privacy.title">SafeAI Office Privacy Filter</h2>
+                    <p class="view-sub" data-i18n="privacy.subtitle">Adds the SafeAI Office privacy component to this computer. It is a SafeAI Suite component, not a model.</p>
+                </div>
+
+                <div class="privacy-card">
+                    <div class="privacy-status-row">
+                        <span class="privacy-dot" id="privacyDot" aria-hidden="true"></span>
+                        <div class="privacy-status-text">
+                            <p class="privacy-state" id="privacyState" data-i18n="privacy.checking">Checking…</p>
+                            <p class="privacy-detail" id="privacyDetail"></p>
+                        </div>
+                    </div>
+
+                    <dl class="privacy-meta" id="privacyMeta"></dl>
+
+                    <div class="privacy-actions">
+                        <button class="btn btn-primary" id="privacyInstallBtn" type="button" hidden data-i18n="privacy.install">Install privacy filter</button>
+                        <button class="btn btn-ghost" id="privacyRefreshBtn" type="button" data-i18n="privacy.refresh">Check again</button>
+                    </div>
+
+                    <div class="privacy-progress" id="privacyProgress" hidden aria-live="polite">
+                        <div class="progress-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="privacyProgressBar">
+                            <div class="progress-fill" id="privacyProgressFill"></div>
+                        </div>
+                        <p class="privacy-progress-text" id="privacyProgressText"></p>
+                    </div>
+                </div>
+
+                <p class="privacy-note" data-i18n="privacy.note">This component is installed into SafeAI Office's own storage. It is separate from your models and from SafeAI Desktop.</p>
             </section>
 
             <!-- Guide -->

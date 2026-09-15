@@ -1,4 +1,5 @@
 mod api;
+mod office_privacy;
 mod security;
 
 use std::io::IsTerminal;
@@ -75,6 +76,11 @@ async fn main() {
         download_counter: std::sync::atomic::AtomicU32::new(0),
         active_benchmark: tokio::sync::RwLock::new(None),
         benchmark_counter: std::sync::atomic::AtomicU32::new(0),
+        // SafeAI Suite components are tracked separately from Ollama downloads
+        // so a privacy-filter install never blocks or is blocked by a model
+        // download, and never consults Ollama at all.
+        active_privacy_install: tokio::sync::RwLock::new(None),
+        privacy_install_counter: std::sync::atomic::AtomicU32::new(0),
     });
 
     let app = api::build_router(state).layer(axum::middleware::from_fn(security::validate_host));
