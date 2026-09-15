@@ -1574,9 +1574,10 @@ fn office_privacy_status_payload() -> serde_json::Value {
             // Which Office-owned component release this artifact belongs to.
             // A tag only — never a download URL.
             "release_tag": office_privacy::OFFICE_PRIVACY_RELEASE_TAG,
-            // No URL and no digest are published for any target yet, so the
-            // customer download stays disabled rather than pointing at a
-            // placeholder or at the SafeAI Desktop runtime repository.
+            // True only when the Office-owned release asset for this target
+            // really exists: `plan_for` carries a URL only for a published
+            // target, so nothing here can point at a placeholder or at the
+            // SafeAI Desktop runtime repository.
             "published": plan.artifact_url.is_some(),
             "download_available": office_privacy::resolved_url(&plan).is_some(),
         },
@@ -3425,7 +3426,10 @@ mod tests {
         );
         let support = body["support"].as_str().unwrap();
         assert!(
-            matches!(support, "awaiting_office_artifact" | "unsupported"),
+            matches!(
+                support,
+                "published" | "awaiting_office_artifact" | "unsupported"
+            ),
             "unexpected support {support}"
         );
         // Detail text always explains the state to a non-technical user.
@@ -3447,37 +3451,51 @@ mod tests {
         assert!(body["error"].is_string());
     }
 
-    #[tokio::test]
-    async fn office_privacy_install_is_refused_while_the_artifact_is_unpublished() {
-        let _guard = ENV_LOCK.lock().unwrap();
-        // SAFETY: serialised by ENV_LOCK.
+    /// A temp Office privacy root, plus the env guards every privacy-env test
+    /// needs. A test that starts an install must never be able to write into
+    /// the real SafeAI Office userData directory.
+    ///
+    /// `office_privacy`'s own tests mutate the same environment through their
+    /// crate-wide guard, and the two mutexes are independent, so this takes
+    /// both — always in this order and never the reverse, which cannot deadlock.
+    type OfficeFixture = (
+        std::sync::MutexGuard<'static, ()>,
+        std::sync::MutexGuard<'static, ()>,
+        std::path::PathBuf,
+    );
+
+    fn office_privacy_fixture(label: &str) -> OfficeFixture {
+        let env_guard = ENV_LOCK.lock().unwrap();
+        let office_guard = crate::office_privacy::test_env_guard();
+        let dir = std::env::temp_dir().join(format!(
+            "smf-api-office-{}-{}-{label}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        // SAFETY: both env guards are live here — they are bound above and are
+        // handed to the caller in the returned tuple, so they stay held for as
+        // long as the fixture is in scope.
         unsafe {
+            std::env::set_var(crate::office_privacy::ENV_ROOT_OVERRIDE, &dir);
             std::env::remove_var(crate::office_privacy::ENV_RUNTIME_URL_OVERRIDE);
         }
-        let router = build_router(test_state());
-        let (status, body) = respond(
-            router,
-            privacy_request("POST", "/api/safeai/office/privacy/install", true),
-        )
-        .await;
+        let root = crate::office_privacy::office_privacy_root().expect("office privacy root");
+        (env_guard, office_guard, root)
+    }
 
-        // 503 when a proven runtime exists but its Office-owned asset is not
-        // published; 409 on a platform with no proven runtime at all.
-        assert!(
-            status == StatusCode::SERVICE_UNAVAILABLE || status == StatusCode::CONFLICT,
-            "unexpected status {status}: {body}"
-        );
-        assert!(
-            matches!(
-                body["code"].as_str(),
-                Some("artifact_not_published") | Some("unsupported_platform")
-            ),
-            "unexpected code: {body}"
-        );
-        // The refusal names the exact asset the customer download is waiting on.
-        let name = body["artifact_name"].as_str().unwrap();
-        assert!(name.starts_with("safeai-office-privacy-runtime-"), "{name}");
-        assert!(body["error"].as_str().unwrap().contains(name));
+    fn clear_office_privacy_fixture(root: &std::path::Path) {
+        // SAFETY: the caller still holds both env guards.
+        unsafe {
+            std::env::remove_var(crate::office_privacy::ENV_ROOT_OVERRIDE);
+            std::env::remove_var(crate::office_privacy::ENV_RUNTIME_URL_OVERRIDE);
+        }
+        if let Some(dir) = root.parent() {
+            let _ = std::fs::remove_dir_all(dir);
+        }
     }
 
     #[tokio::test]
@@ -3498,26 +3516,72 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn a_refused_privacy_install_never_starts_a_task() {
-        let _guard = ENV_LOCK.lock().unwrap();
-        // SAFETY: serialised by ENV_LOCK.
+    async fn a_privacy_install_that_cannot_download_leaves_no_stuck_task_or_manifest() {
+        let (_env_guard, _office_guard, root) = office_privacy_fixture("cannot-download");
+        // An unroutable loopback port, so the install starts and fails
+        // immediately: this test needs no network and no multi-gigabyte
+        // model download. It is the deterministic stand-in for a download that
+        // cannot be served.
+        // SAFETY: both env guards are held.
         unsafe {
-            std::env::remove_var(crate::office_privacy::ENV_RUNTIME_URL_OVERRIDE);
+            std::env::set_var(
+                crate::office_privacy::ENV_RUNTIME_URL_OVERRIDE,
+                "http://127.0.0.1:1/safeai-office-privacy-runtime-linux-x64-v1.0.0.tar.gz",
+            );
         }
+
         let state = test_state();
         let router = build_router(Arc::clone(&state));
-        let _ = respond(
-            router,
+        let (status, body) = respond(
+            router.clone(),
             privacy_request("POST", "/api/safeai/office/privacy/install", true),
         )
         .await;
+        assert_eq!(status, StatusCode::OK, "{body}");
+        assert_eq!(body["status"], "installing");
+        let id = body["id"].as_str().expect("an install id").to_string();
 
-        // A refused install must leave no "installing" record behind, so the
-        // UI cannot get stuck on a spinner for a component that cannot install.
+        let mut last = serde_json::Value::Null;
+        for _ in 0..400 {
+            let (_, b) = respond(
+                router.clone(),
+                privacy_request(
+                    "GET",
+                    &format!("/api/safeai/office/privacy/install/{id}"),
+                    false,
+                ),
+            )
+            .await;
+            last = b;
+            if last["status"] != "installing" {
+                break;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(25)).await;
+        }
+        // The lane reaches a terminal error rather than hanging on a spinner.
+        assert_eq!(last["status"], "error", "{last}");
+        assert_eq!(last["error_code"], "download_failed", "{last}");
+
+        // Nothing durable: no manifest, no promoted component, no staging left.
         assert!(
-            state.active_privacy_install.read().await.is_none(),
-            "a blocked install must not create task state"
+            !crate::office_privacy::manifest_path(&root).exists(),
+            "no manifest on a failed install"
         );
+        assert!(
+            !crate::office_privacy::component_dir(&root).exists(),
+            "nothing is promoted on a failed install"
+        );
+        let staging = std::fs::read_dir(&root)
+            .map(|entries| {
+                entries
+                    .filter_map(Result::ok)
+                    .filter(|e| e.file_name().to_string_lossy().starts_with(".staging-"))
+                    .count()
+            })
+            .unwrap_or(0);
+        assert_eq!(staging, 0, "staging must be discarded on failure");
+
+        clear_office_privacy_fixture(&root);
     }
 
     #[tokio::test]
