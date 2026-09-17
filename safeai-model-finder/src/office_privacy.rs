@@ -159,12 +159,26 @@ pub const MODEL_SHA256: &str =
 /// Read-only provenance label for the platform contracts below.
 pub const CONTRACT_PROVENANCE: &str = "SafeAI Desktop runtime-manager.js (safeai-runtime-v1.0.0)";
 
-/// Proven layout of the Windows runtime inside its archive, relative to the
-/// component directory. Mirrors Desktop's extraction root
-/// (`{runtimeCache}/privacy-filter.cpp`) plus the archive's own
-/// `build/safeai-release/bin/Release/` prefix.
+/// Component-relative directory holding the proven Windows runtime files.
+///
+/// Mirrors Desktop's extraction root (`{runtimeCache}/privacy-filter.cpp`) plus
+/// the archive's own `build/safeai-release/bin/Release/` prefix, so it is the
+/// directory every required runtime file must end up in. It is deliberately
+/// **not** the extraction root — see [`WINDOWS_ARCHIVE_PREFIX`].
 const WINDOWS_RUNTIME_DIR: &str =
     "runtime/privacy-filter.cpp/build/safeai-release/bin/Release/";
+
+/// Where the Windows runtime archive's own paths map inside the component
+/// directory.
+///
+/// The pinned Office-owned archive already carries the
+/// `build/safeai-release/bin/Release/` segment as part of every entry, so the
+/// extraction root must stop *above* it, at Desktop's runtime-cache directory.
+/// Reusing [`WINDOWS_RUNTIME_DIR`] here applies that segment a second time,
+/// leaving every required file one level too deep: `finalize_install` then finds
+/// nothing and the install fails with `MissingRuntimeFiles` after the model
+/// download (BUG-0020).
+const WINDOWS_ARCHIVE_PREFIX: &str = "runtime/privacy-filter.cpp/";
 
 /// Runtime directory for the Linux bundled layout, relative to the component
 /// directory. Mirrors Desktop's `resources/privacy-runtime` layout.
@@ -426,7 +440,7 @@ pub fn plan_for(target: OfficeTarget) -> OfficePrivacyPlan {
             artifact_format: ArchiveFormat::Zip,
             artifact_sha256: Some(WINDOWS_ARTIFACT_SHA256),
             artifact_url: Some(WINDOWS_ARTIFACT_URL),
-            archive_prefix: WINDOWS_RUNTIME_DIR,
+            archive_prefix: WINDOWS_ARCHIVE_PREFIX,
             required_runtime_files: WINDOWS_REQUIRED_FILES.as_slice(),
             provenance: CONTRACT_PROVENANCE,
         },
@@ -2215,6 +2229,109 @@ mod tests {
                 );
             }
         }
+    }
+
+    /// The directory the pinned Windows archive supplies on its own: every entry
+    /// in `safeai-office-privacy-runtime-windows-x64-v1.0.0.zip` sits under it.
+    const WINDOWS_ARCHIVE_ENTRY_DIR: &str = "build/safeai-release/bin/Release/";
+
+    /// BUG-0020 regression: the extraction root must stop *above* the directory
+    /// the archive already carries.
+    ///
+    /// `Expand-Archive` (Windows) and `unzip` (elsewhere) both materialise each
+    /// archive-relative entry name under the destination, so a file lands at
+    /// `archive_extract_root(base, plan).join(entry)`. Applying the archive's own
+    /// `build/...` segment a second time put every required file one level too
+    /// deep and produced `MissingRuntimeFiles` after the model download.
+    #[test]
+    fn windows_archive_entries_land_exactly_on_the_required_runtime_paths() {
+        let plan = windows_plan();
+        let base = temp_root("windows-archive-prefix");
+        let extract_root = archive_extract_root(&base, &plan);
+        let doubled = format!("{WINDOWS_ARCHIVE_ENTRY_DIR}{WINDOWS_ARCHIVE_ENTRY_DIR}");
+
+        // The archive root maps to the runtime-cache component directory, never
+        // to the archive's own inner `build/...` directory.
+        assert_eq!(plan.archive_prefix, WINDOWS_ARCHIVE_PREFIX);
+        assert_eq!(extract_root, base.join("runtime/privacy-filter.cpp"));
+
+        // The two Windows constants must not drift apart: the required-file
+        // directory is exactly the archive prefix plus the segment the archive
+        // itself supplies. If someone re-merges them, this fails first.
+        assert_eq!(
+            WINDOWS_RUNTIME_DIR,
+            format!("{WINDOWS_ARCHIVE_PREFIX}{WINDOWS_ARCHIVE_ENTRY_DIR}"),
+            "the extraction root plus the archive's own directory must equal the \
+             required-file directory"
+        );
+        assert!(
+            !plan.archive_prefix.contains("build/"),
+            "the archive's own directory must not be part of the extraction root: {}",
+            plan.archive_prefix
+        );
+
+        for rel in plan.required_runtime_files {
+            let entry = rel
+                .strip_prefix(plan.archive_prefix)
+                .unwrap_or_else(|| panic!("{rel} must sit under {}", plan.archive_prefix));
+
+            // The entry is exactly what the pinned archive ships.
+            assert!(
+                entry.starts_with(WINDOWS_ARCHIVE_ENTRY_DIR),
+                "{entry} must be the archive's own entry name"
+            );
+            assert!(!entry.contains(".."), "{entry} must stay inside the component");
+
+            // Where it lands must be exactly where `finalize_install` looks.
+            let landed = extract_root.join(entry);
+            assert_eq!(
+                landed,
+                base.join(rel),
+                "{entry} must land on its required path"
+            );
+            assert!(
+                !landed.to_string_lossy().contains(&doubled),
+                "{entry} nests the archive directory twice: {}",
+                landed.display()
+            );
+        }
+
+        // The literal BUG-0020 shape: the binary one prefix too deep.
+        let binary = WINDOWS_RELATIVE_BINARY
+            .strip_prefix(plan.archive_prefix)
+            .expect("the binary sits under the archive prefix");
+        assert_eq!(binary, format!("{WINDOWS_ARCHIVE_ENTRY_DIR}pf-cli.exe"));
+        let landed_binary = extract_root.join(binary);
+        assert_eq!(landed_binary, base.join(WINDOWS_RELATIVE_BINARY));
+        assert!(!landed_binary.to_string_lossy().contains(&doubled));
+
+        let _ = std::fs::remove_dir_all(&base);
+    }
+
+    /// BUG-0020 must not disturb the accepted Linux arm: its archive entries are
+    /// bare, so its extraction root stays the component's `runtime/`.
+    #[test]
+    fn linux_archive_entries_keep_their_accepted_rooting() {
+        let plan = linux_plan();
+        let base = temp_root("linux-archive-prefix");
+        let extract_root = archive_extract_root(&base, &plan);
+
+        assert_eq!(plan.archive_prefix, LINUX_RUNTIME_DIR);
+        assert_eq!(extract_root, base.join("runtime"));
+
+        for rel in plan.required_runtime_files {
+            let entry = rel
+                .strip_prefix(plan.archive_prefix)
+                .unwrap_or_else(|| panic!("{rel} must sit under {}", plan.archive_prefix));
+            // Bare entries: `pf-cli`, `ggml/src/...` — no self-re-rooting.
+            assert!(
+                !entry.starts_with("runtime/"),
+                "{entry} must not re-root itself"
+            );
+            assert_eq!(extract_root.join(entry), base.join(rel));
+        }
+
+        let _ = std::fs::remove_dir_all(&base);
     }
 
     #[test]
