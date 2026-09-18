@@ -143,9 +143,11 @@ pub const LINUX_ARTIFACT_URL: &str = concat!(
 // ── Published Office-owned macOS runtime artifacts ───────────────
 //
 // Both macOS architectures are published under the same Office-owned
-// component release as Windows and Linux. The archives are TarGz with a
-// `runtime/` root carrying bare entries (`pf-cli`, `bin/…`, `ggml/src/…`),
-// exactly like the Linux layout, except the GGML libraries are `.dylib`.
+// component release as Windows and Linux. The archives are TarGz whose
+// entries are already rooted at `runtime/` (`runtime/pf-cli`,
+// `runtime/bin/…`, `runtime/ggml/src/…`), unlike the Linux archive whose
+// entries are bare — so the archive ROOT maps to the component directory
+// itself (see [`MACOS_ARCHIVE_PREFIX`]). The GGML libraries are `.dylib`.
 // The arm64 backend file intentionally keeps the `libggml-cpu-x64.so`
 // filename: SafeAI Office expects that name on every non-Windows platform,
 // even though the arm64 binary itself is arm64.
@@ -321,6 +323,19 @@ static MACOS_REQUIRED_FILES: LazyLock<Vec<&'static str>> = LazyLock::new(|| {
         .map(|path| &*Box::leak(path.into_boxed_str()))
         .collect()
 });
+
+/// Where the macOS runtime archives' own paths map inside the component
+/// directory.
+///
+/// The published macOS archives already carry the `runtime/` segment as part
+/// of every entry (`runtime/pf-cli`, …), so the extraction root is the staged
+/// component directory itself: mapping the archive root to `runtime/` instead
+/// applies that segment a second time and every required file lands one level
+/// too deep at `runtime/runtime/…`, failing the install with
+/// `MissingRuntimeFiles` after the model download (real Intel Mac failure,
+/// all 4 files missing). `MACOS_RUNTIME_DIR` keeps its correct role as the
+/// required-file directory.
+const MACOS_ARCHIVE_PREFIX: &str = "";
 
 /// Component-relative path of the `pf-cli` binary on Windows.
 pub const WINDOWS_RELATIVE_BINARY: &str =
@@ -537,7 +552,7 @@ pub fn plan_for(target: OfficeTarget) -> OfficePrivacyPlan {
             artifact_format: ArchiveFormat::TarGz,
             artifact_sha256: Some(MACOS_X64_ARTIFACT_SHA256),
             artifact_url: Some(MACOS_X64_ARTIFACT_URL),
-            archive_prefix: MACOS_RUNTIME_DIR,
+            archive_prefix: MACOS_ARCHIVE_PREFIX,
             required_runtime_files: MACOS_REQUIRED_FILES.as_slice(),
             provenance: CONTRACT_PROVENANCE,
         },
@@ -549,7 +564,7 @@ pub fn plan_for(target: OfficeTarget) -> OfficePrivacyPlan {
             artifact_format: ArchiveFormat::TarGz,
             artifact_sha256: Some(MACOS_ARM64_ARTIFACT_SHA256),
             artifact_url: Some(MACOS_ARM64_ARTIFACT_URL),
-            archive_prefix: MACOS_RUNTIME_DIR,
+            archive_prefix: MACOS_ARCHIVE_PREFIX,
             required_runtime_files: MACOS_REQUIRED_FILES.as_slice(),
             provenance: CONTRACT_PROVENANCE,
         },
@@ -2418,9 +2433,10 @@ mod tests {
     // ── macOS Intel x64 + Apple Silicon arm64 ─────────────────────
     //
     // Both macOS architectures publish their own Office-owned TarGz under the
-    // same component release, sharing the `runtime/` root and the four-file
-    // contract below. The expectations restate the literals so a swapped hash
-    // or a wrong prefix fails instead of following the implementation.
+    // same component release. The archives are `runtime/`-rooted (unlike the
+    // bare Linux entries), so the archive root maps to the component directory
+    // itself. The expectations restate the literals so a swapped hash or a
+    // wrong prefix fails instead of following the implementation.
 
     /// macOS Intel x64 resolves to exactly its published asset.
     #[test]
@@ -2449,8 +2465,12 @@ mod tests {
             Some("https://github.com/fabiofurlano/safeai-office-runtime/releases/download/office-privacy-v1.0.0/safeai-office-privacy-runtime-macos-x64-v1.0.0.tar.gz")
         );
         assert_eq!(plan.artifact_url, Some(MACOS_X64_ARTIFACT_URL));
-        assert_eq!(plan.archive_prefix, "runtime/");
-        assert_eq!(plan.archive_prefix, MACOS_RUNTIME_DIR);
+        // The published archive already carries `runtime/` in every entry,
+        // so its root maps to the component directory itself — not to
+        // `runtime/` a second time (real Intel Mac failure: all 4 missing).
+        assert_eq!(plan.archive_prefix, MACOS_ARCHIVE_PREFIX);
+        assert_eq!(plan.archive_prefix, "");
+        assert_eq!(MACOS_RUNTIME_DIR, "runtime/");
         assert_eq!(relative_binary_for(&plan), Some("runtime/pf-cli"));
         assert_eq!(relative_binary_for(&plan), Some(MACOS_RELATIVE_BINARY));
         assert_eq!(
@@ -2503,8 +2523,11 @@ mod tests {
             Some("https://github.com/fabiofurlano/safeai-office-runtime/releases/download/office-privacy-v1.0.0/safeai-office-privacy-runtime-macos-arm64-v1.0.0.tar.gz")
         );
         assert_eq!(plan.artifact_url, Some(MACOS_ARM64_ARTIFACT_URL));
-        assert_eq!(plan.archive_prefix, "runtime/");
-        assert_eq!(plan.archive_prefix, MACOS_RUNTIME_DIR);
+        // Same rooting as Intel: the arm64 archive is identically
+        // `runtime/`-rooted, so its root maps to the component dir itself.
+        assert_eq!(plan.archive_prefix, MACOS_ARCHIVE_PREFIX);
+        assert_eq!(plan.archive_prefix, "");
+        assert_eq!(MACOS_RUNTIME_DIR, "runtime/");
         assert_eq!(relative_binary_for(&plan), Some("runtime/pf-cli"));
         assert_eq!(relative_binary_for(&plan), Some(MACOS_RELATIVE_BINARY));
         assert_eq!(
@@ -2550,42 +2573,84 @@ mod tests {
         ));
     }
 
-    /// Both macOS archives extract bare entries under `runtime/` with no
-    /// doubled `runtime/runtime` segment.
+    /// File entries the published macOS archives really ship.
+    ///
+    /// Verified 2026-09-18 by listing the hash-pinned x64 (729242 B,
+    /// `6c85152e…87a47a`) and arm64 (715184 B, `214cd46d…733b8e1`) assets:
+    /// both carry these four `runtime/`-rooted files (plus directory
+    /// entries). The fixture below mirrors exactly this layout.
+    const MACOS_ARCHIVE_FILE_ENTRIES: &[&str] = &[
+        "runtime/pf-cli",
+        "runtime/ggml/src/libggml.0.dylib",
+        "runtime/ggml/src/libggml-base.0.dylib",
+        "runtime/bin/libggml-cpu-x64.so",
+    ];
+
+    /// Build a `.tar.gz` fixture with the real published macOS archive
+    /// layout: `runtime/`-rooted file entries with stub bytes.
+    ///
+    /// Packed with the system `tar` — the same tool production
+    /// [`extract_archive`] uses — so the layout semantics are identical to
+    /// the real asset, not an approximation of it.
+    fn macos_archive_fixture(dir: &Path) -> PathBuf {
+        let src = dir.join("fixture-src");
+        for entry in MACOS_ARCHIVE_FILE_ENTRIES {
+            let path = src.join(entry);
+            std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+            std::fs::write(&path, b"stub-runtime-bytes").unwrap();
+        }
+        let archive = dir.join("macos-runtime.tar.gz");
+        let status = std::process::Command::new("tar")
+            .args(["-czf"])
+            .arg(&archive)
+            .args(["-C"])
+            .arg(&src)
+            .arg("runtime")
+            .status()
+            .expect("system tar must be available: production extracts with it too");
+        assert!(status.success(), "the fixture archive must pack");
+        archive
+    }
+
+    /// Real Intel Mac failure regression: a `runtime/`-rooted macOS archive
+    /// extracted through the production mapping + production extraction must
+    /// satisfy every required runtime file with no doubled `runtime/runtime`.
+    ///
+    /// With the old `archive_prefix = "runtime/"` the extract root sat one
+    /// level too deep, all four files landed under `runtime/runtime/…`, and
+    /// the install failed with `MissingRuntimeFiles` for all four — exactly
+    /// the real Mac verdict. This test fails on that mapping and passes on
+    /// the corrected one.
     #[test]
-    fn macos_archive_entries_land_exactly_on_the_required_runtime_paths() {
+    fn macos_real_archive_layout_extracts_onto_the_required_runtime_paths() {
         for plan in [macos_x64_plan(), macos_arm64_plan()] {
-            let base = temp_root("macos-archive-prefix");
-            let extract_root = archive_extract_root(&base, &plan);
-            assert_eq!(plan.archive_prefix, "runtime/");
-            assert_eq!(extract_root, base.join("runtime"));
-            for rel in plan.required_runtime_files {
-                let entry = rel.strip_prefix(plan.archive_prefix).unwrap_or_else(|| {
-                    panic!("{rel} must sit under {}", plan.archive_prefix)
-                });
-                // Bare entries: `pf-cli`, `ggml/src/...`, `bin/...` — the
-                // archive must not re-root itself.
-                assert!(
-                    !entry.starts_with("runtime/"),
-                    "{entry} must not re-root itself"
-                );
-                assert!(!entry.contains(".."), "{entry} must stay inside the component");
-                let landed = extract_root.join(entry);
-                assert_eq!(landed, base.join(rel), "{entry} must land on its required path");
-                assert!(
-                    !landed.to_string_lossy().contains("runtime/runtime"),
-                    "{entry} nests the runtime directory twice: {}",
-                    landed.display()
-                );
-            }
-            // `pf-cli` lands exactly at `runtime/pf-cli` on both architectures.
-            let binary = MACOS_RELATIVE_BINARY
-                .strip_prefix(plan.archive_prefix)
-                .expect("the binary sits under the archive prefix");
-            assert_eq!(binary, "pf-cli");
+            assert_eq!(plan.archive_prefix, MACOS_ARCHIVE_PREFIX);
+            let base = temp_root("macos-real-layout");
+            let staging = staging_dir(&base, "real");
+            let archive = macos_archive_fixture(&base);
+
+            // Production mapping + production extraction, no approximation.
+            let extract_root = archive_extract_root(&staging, &plan);
             assert_eq!(
-                extract_root.join(binary),
-                base.join("runtime/pf-cli")
+                extract_root, staging,
+                "the `runtime/`-rooted archive root must map to the staged \
+                 component directory itself"
+            );
+            extract_archive(&archive, plan.artifact_format, &extract_root)
+                .expect("production extraction of the macOS layout must succeed");
+
+            let missing = missing_required_files(&staging, &plan);
+            assert!(
+                missing.is_empty(),
+                "the real macOS layout must satisfy every required file, missing: {missing:?}"
+            );
+            assert!(
+                !staging.join("runtime/runtime").exists(),
+                "the archive's own `runtime/` segment must not be applied twice"
+            );
+            assert!(
+                staging.join(MACOS_RELATIVE_BINARY).is_file(),
+                "pf-cli must land at runtime/pf-cli"
             );
             let _ = std::fs::remove_dir_all(&base);
         }
