@@ -33,8 +33,8 @@
 //! ## Artifact ownership
 //!
 //! Customer downloads must come from `fabiofurlano/safeai-office-runtime`.
-//! Windows x64 and Linux x64 are published there and report
-//! [`PlatformSupport::Published`]. A target whose Office-owned asset is not
+//! Windows x64, Linux x64, macOS Intel x64 and macOS Apple Silicon arm64 are
+//! published there and report [`PlatformSupport::Published`]. A target whose Office-owned asset is not
 //! published reports `AwaitingOfficeArtifact` and refuses the customer download;
 //! a target with no proven runtime at all reports `Unsupported`. A missing URL
 //! is never substituted with a Desktop URL or a placeholder.
@@ -138,6 +138,48 @@ pub const LINUX_ARTIFACT_URL: &str = concat!(
     "https://github.com/fabiofurlano/safeai-office-runtime/releases/download/",
     "office-privacy-v1.0.0/",
     "safeai-office-privacy-runtime-linux-x64-v1.0.0.tar.gz",
+);
+
+// ── Published Office-owned macOS runtime artifacts ───────────────
+//
+// Both macOS architectures are published under the same Office-owned
+// component release as Windows and Linux. The archives are TarGz with a
+// `runtime/` root carrying bare entries (`pf-cli`, `bin/…`, `ggml/src/…`),
+// exactly like the Linux layout, except the GGML libraries are `.dylib`.
+// The arm64 backend file intentionally keeps the `libggml-cpu-x64.so`
+// filename: SafeAI Office expects that name on every non-Windows platform,
+// even though the arm64 binary itself is arm64.
+
+/// Published Office-owned macOS Intel x64 runtime asset filename.
+pub const MACOS_X64_ARTIFACT_NAME: &str =
+    "safeai-office-privacy-runtime-macos-x64-v1.0.0.tar.gz";
+
+/// SHA-256 of the published Office-owned macOS Intel x64 runtime archive
+/// (`safeai-office-privacy-runtime-macos-x64-v1.0.0.tar.gz`, 729242 bytes).
+pub const MACOS_X64_ARTIFACT_SHA256: &str =
+    "6c85152e6b21981950d235fa0012f7d5705f015bc1c0059e7132adf91c87a47a";
+
+/// Public, anonymously fetchable download URL for the macOS Intel x64 archive.
+pub const MACOS_X64_ARTIFACT_URL: &str = concat!(
+    "https://github.com/fabiofurlano/safeai-office-runtime/releases/download/",
+    "office-privacy-v1.0.0/",
+    "safeai-office-privacy-runtime-macos-x64-v1.0.0.tar.gz",
+);
+
+/// Published Office-owned macOS Apple Silicon arm64 runtime asset filename.
+pub const MACOS_ARM64_ARTIFACT_NAME: &str =
+    "safeai-office-privacy-runtime-macos-arm64-v1.0.0.tar.gz";
+
+/// SHA-256 of the published Office-owned macOS arm64 runtime archive
+/// (`safeai-office-privacy-runtime-macos-arm64-v1.0.0.tar.gz`, 715184 bytes).
+pub const MACOS_ARM64_ARTIFACT_SHA256: &str =
+    "214cd46d7b2dc9d439bc0a1a1974b347cb3abbea983ba98dc83a255aa733b8e1";
+
+/// Public, anonymously fetchable download URL for the macOS arm64 archive.
+pub const MACOS_ARM64_ARTIFACT_URL: &str = concat!(
+    "https://github.com/fabiofurlano/safeai-office-runtime/releases/download/",
+    "office-privacy-v1.0.0/",
+    "safeai-office-privacy-runtime-macos-arm64-v1.0.0.tar.gz",
 );
 
 // ── Proven upstream privacy contracts (SafeAI Desktop, read-only) ──
@@ -253,12 +295,42 @@ static LINUX_REQUIRED_FILES: LazyLock<Vec<&'static str>> = LazyLock::new(|| {
         .collect()
 });
 
+/// Runtime directory for the macOS bundled layout, relative to the component
+/// directory. Same `runtime/` root as Linux: the macOS archives carry bare
+/// entries that land directly under it.
+const MACOS_RUNTIME_DIR: &str = "runtime/";
+
+/// Proven macOS bundled runtime files (Office-owned macOS archives).
+///
+/// Identical for Intel x64 and Apple Silicon arm64: `pf-cli` plus the GGML
+/// `.dylib` libraries and the CPU backend. The backend file is intentionally
+/// named `libggml-cpu-x64.so` on both architectures because SafeAI Office
+/// expects that filename on every non-Windows platform.
+const MACOS_PROVEN_RUNTIME_FILES: &[&str] = &[
+    "pf-cli",
+    "ggml/src/libggml.0.dylib",
+    "ggml/src/libggml-base.0.dylib",
+    "bin/libggml-cpu-x64.so",
+];
+
+/// Component-relative macOS runtime files (shared by both architectures).
+static MACOS_REQUIRED_FILES: LazyLock<Vec<&'static str>> = LazyLock::new(|| {
+    MACOS_PROVEN_RUNTIME_FILES
+        .iter()
+        .map(|name| format!("{MACOS_RUNTIME_DIR}{name}"))
+        .map(|path| &*Box::leak(path.into_boxed_str()))
+        .collect()
+});
+
 /// Component-relative path of the `pf-cli` binary on Windows.
 pub const WINDOWS_RELATIVE_BINARY: &str =
     "runtime/privacy-filter.cpp/build/safeai-release/bin/Release/pf-cli.exe";
 
 /// Component-relative path of the `pf-cli` binary on Linux.
 pub const LINUX_RELATIVE_BINARY: &str = "runtime/pf-cli";
+
+/// Component-relative path of the `pf-cli` binary on macOS (both architectures).
+pub const MACOS_RELATIVE_BINARY: &str = "runtime/pf-cli";
 
 // ── Target detection ──────────────────────────────────────────────
 
@@ -427,9 +499,10 @@ pub struct OfficePrivacyPlan {
 /// tag, with the pinned URL and digest above, so the customer download is
 /// enabled.
 ///
-/// macOS reports `Unsupported`: no macOS privacy runtime has ever been built or
-/// proven. Enabling a new target is a matter of filling in `artifact_url`,
-/// `artifact_sha256` and `support` here.
+/// macOS Intel x64 and macOS Apple Silicon arm64 are [`PlatformSupport::Published`]
+/// as well: each has its own Office-owned archive under the same component
+/// release tag, with its own pinned URL and digest, so the customer download is
+/// enabled on both architectures.
 pub fn plan_for(target: OfficeTarget) -> OfficePrivacyPlan {
     match (target.os, target.arch) {
         (OfficeOs::Windows, OfficeArch::X86_64) => OfficePrivacyPlan {
@@ -458,28 +531,26 @@ pub fn plan_for(target: OfficeTarget) -> OfficePrivacyPlan {
         },
         (OfficeOs::Macos, OfficeArch::X86_64) => OfficePrivacyPlan {
             target,
-            support: PlatformSupport::Unsupported,
-            support_detail: "No macOS Intel privacy runtime has ever been built or proven, so \
-                             there is no artifact contract to install.",
-            artifact_name: "safeai-office-privacy-runtime-macos-x64-v1.0.0.tar.gz",
+            support: PlatformSupport::Published,
+            support_detail: "macOS Intel x64 runtime is published by SafeAI Office and ready to install.",
+            artifact_name: MACOS_X64_ARTIFACT_NAME,
             artifact_format: ArchiveFormat::TarGz,
-            artifact_sha256: None,
-            artifact_url: None,
-            archive_prefix: LINUX_RUNTIME_DIR,
-            required_runtime_files: &[],
+            artifact_sha256: Some(MACOS_X64_ARTIFACT_SHA256),
+            artifact_url: Some(MACOS_X64_ARTIFACT_URL),
+            archive_prefix: MACOS_RUNTIME_DIR,
+            required_runtime_files: MACOS_REQUIRED_FILES.as_slice(),
             provenance: CONTRACT_PROVENANCE,
         },
         (OfficeOs::Macos, OfficeArch::Aarch64) => OfficePrivacyPlan {
             target,
-            support: PlatformSupport::Unsupported,
-            support_detail: "No macOS Apple Silicon privacy runtime has ever been built or \
-                             proven, so there is no artifact contract to install.",
-            artifact_name: "safeai-office-privacy-runtime-macos-arm64-v1.0.0.tar.gz",
+            support: PlatformSupport::Published,
+            support_detail: "macOS Apple Silicon arm64 runtime is published by SafeAI Office and ready to install.",
+            artifact_name: MACOS_ARM64_ARTIFACT_NAME,
             artifact_format: ArchiveFormat::TarGz,
-            artifact_sha256: None,
-            artifact_url: None,
-            archive_prefix: LINUX_RUNTIME_DIR,
-            required_runtime_files: &[],
+            artifact_sha256: Some(MACOS_ARM64_ARTIFACT_SHA256),
+            artifact_url: Some(MACOS_ARM64_ARTIFACT_URL),
+            archive_prefix: MACOS_RUNTIME_DIR,
+            required_runtime_files: MACOS_REQUIRED_FILES.as_slice(),
             provenance: CONTRACT_PROVENANCE,
         },
         _ => OfficePrivacyPlan {
@@ -503,6 +574,7 @@ pub fn relative_binary_for(plan: &OfficePrivacyPlan) -> Option<&'static str> {
     match plan.target.os {
         OfficeOs::Windows => Some(WINDOWS_RELATIVE_BINARY),
         OfficeOs::Linux => Some(LINUX_RELATIVE_BINARY),
+        OfficeOs::Macos => Some(MACOS_RELATIVE_BINARY),
         _ => None,
     }
 }
@@ -1289,6 +1361,16 @@ mod tests {
         plan_for(OfficeTarget::new(OfficeOs::Linux, OfficeArch::X86_64))
     }
 
+    /// macOS Intel x64 plan helper.
+    fn macos_x64_plan() -> OfficePrivacyPlan {
+        plan_for(OfficeTarget::new(OfficeOs::Macos, OfficeArch::X86_64))
+    }
+
+    /// macOS Apple Silicon arm64 plan helper.
+    fn macos_arm64_plan() -> OfficePrivacyPlan {
+        plan_for(OfficeTarget::new(OfficeOs::Macos, OfficeArch::Aarch64))
+    }
+
     // ── Platform / architecture selection ─────────────────────────
 
     #[test]
@@ -1489,27 +1571,24 @@ mod tests {
 
     #[test]
     fn unproven_targets_are_unsupported() {
-        for arch in [OfficeArch::X86_64, OfficeArch::Aarch64] {
-            let plan = plan_for(OfficeTarget::new(OfficeOs::Macos, arch));
-            assert_eq!(
-                plan.support,
-                PlatformSupport::Unsupported,
-                "macOS {arch:?} has never been proven"
-            );
-            assert!(plan.required_runtime_files.is_empty());
-            assert_eq!(relative_binary_for(&plan), None);
-            assert_eq!(plan.support.as_str(), "unsupported");
-        }
+        // macOS x64 and arm64 are published since the macOS milestone and are
+        // covered by the dedicated macOS tests below; only lanes with no
+        // proven runtime at all belong here.
         let exotic = plan_for(OfficeTarget::new(OfficeOs::Windows, OfficeArch::Aarch64));
         assert_eq!(exotic.support, PlatformSupport::Unsupported);
+        assert!(exotic.required_runtime_files.is_empty());
         let other = plan_for(OfficeTarget::new(OfficeOs::Other, OfficeArch::Other));
         assert_eq!(other.support, PlatformSupport::Unsupported);
+        // `relative_binary_for` is OS-laned, so the no-binary case is the
+        // `Other` lane rather than an unproven arch of a known OS.
+        assert_eq!(relative_binary_for(&other), None);
+        assert_eq!(other.support.as_str(), "unsupported");
     }
 
     #[test]
     fn unsupported_platform_refuses_install_and_reports_unsupported_state() {
         let root = temp_root("unsupported");
-        let plan = plan_for(OfficeTarget::new(OfficeOs::Macos, OfficeArch::Aarch64));
+        let plan = plan_for(OfficeTarget::new(OfficeOs::Windows, OfficeArch::Aarch64));
         let staging = stage_component(&root, &plan, "st", b"model");
 
         let err = finalize_install(&root, &staging, &plan, &"0".repeat(64), "t".into())
@@ -2095,12 +2174,11 @@ mod tests {
         unsafe {
             std::env::remove_var(ENV_RUNTIME_URL_OVERRIDE);
         }
-        // Windows x64 and Linux x64 are published and must NOT be in this list;
-        // macOS has never been proven and has no URL or digest at all.
+        // Windows x64, Linux x64, macOS x64 and macOS arm64 are published and
+        // must NOT be in this list; only lanes with no proven runtime refuse.
         for target in [
-            OfficeTarget::new(OfficeOs::Macos, OfficeArch::X86_64),
-            OfficeTarget::new(OfficeOs::Macos, OfficeArch::Aarch64),
             OfficeTarget::new(OfficeOs::Windows, OfficeArch::Aarch64),
+            OfficeTarget::new(OfficeOs::Other, OfficeArch::Other),
         ] {
             let plan = plan_for(target);
             assert_ne!(
@@ -2116,10 +2194,10 @@ mod tests {
             );
         }
 
-        // macOS specifically: a proven-contract refusal names the asset a
-        // customer download would have waited on, rather than failing vaguely.
-        let macos = plan_for(OfficeTarget::new(OfficeOs::Macos, OfficeArch::Aarch64));
-        let err = require_published_artifact(&macos)
+        // A still-unproven target refuses with the unsupported code and a
+        // non-empty user message, rather than failing vaguely.
+        let unproven = plan_for(OfficeTarget::new(OfficeOs::Windows, OfficeArch::Aarch64));
+        let err = require_published_artifact(&unproven)
             .expect_err("an unproven target must refuse the download");
         assert_eq!(err.code(), "unsupported_platform");
         assert!(!err.user_message().is_empty());
@@ -2131,8 +2209,6 @@ mod tests {
         // Every lane that has no proven runtime carries no pinned digest, so an
         // override must never be enough to start an unverified install there.
         for target in [
-            OfficeTarget::new(OfficeOs::Macos, OfficeArch::X86_64),
-            OfficeTarget::new(OfficeOs::Macos, OfficeArch::Aarch64),
             OfficeTarget::new(OfficeOs::Windows, OfficeArch::Aarch64),
             OfficeTarget::new(OfficeOs::Other, OfficeArch::Other),
         ] {
@@ -2219,7 +2295,12 @@ mod tests {
 
     #[test]
     fn every_required_file_sits_under_the_archive_prefix() {
-        for plan in [windows_plan(), linux_plan()] {
+        for plan in [
+            windows_plan(),
+            linux_plan(),
+            macos_x64_plan(),
+            macos_arm64_plan(),
+        ] {
             assert!(!plan.required_runtime_files.is_empty());
             for rel in plan.required_runtime_files {
                 assert!(
@@ -2334,6 +2415,182 @@ mod tests {
         let _ = std::fs::remove_dir_all(&base);
     }
 
+    // ── macOS Intel x64 + Apple Silicon arm64 ─────────────────────
+    //
+    // Both macOS architectures publish their own Office-owned TarGz under the
+    // same component release, sharing the `runtime/` root and the four-file
+    // contract below. The expectations restate the literals so a swapped hash
+    // or a wrong prefix fails instead of following the implementation.
+
+    /// macOS Intel x64 resolves to exactly its published asset.
+    #[test]
+    fn macos_x64_resolves_to_the_exact_published_intel_asset() {
+        let _guard = test_env_guard();
+        // SAFETY: serialised by the env lock.
+        unsafe {
+            std::env::remove_var(ENV_RUNTIME_URL_OVERRIDE);
+        }
+        let plan = macos_x64_plan();
+        assert_eq!(plan.support, PlatformSupport::Published);
+        assert_eq!(plan.support.as_str(), "published");
+        assert_eq!(plan.artifact_format, ArchiveFormat::TarGz);
+        assert_eq!(plan.artifact_name, MACOS_X64_ARTIFACT_NAME);
+        assert_eq!(
+            plan.artifact_name,
+            "safeai-office-privacy-runtime-macos-x64-v1.0.0.tar.gz"
+        );
+        assert_eq!(plan.artifact_sha256, Some(MACOS_X64_ARTIFACT_SHA256));
+        assert_eq!(
+            plan.artifact_sha256,
+            Some("6c85152e6b21981950d235fa0012f7d5705f015bc1c0059e7132adf91c87a47a")
+        );
+        assert_eq!(
+            plan.artifact_url,
+            Some("https://github.com/fabiofurlano/safeai-office-runtime/releases/download/office-privacy-v1.0.0/safeai-office-privacy-runtime-macos-x64-v1.0.0.tar.gz")
+        );
+        assert_eq!(plan.artifact_url, Some(MACOS_X64_ARTIFACT_URL));
+        assert_eq!(plan.archive_prefix, "runtime/");
+        assert_eq!(plan.archive_prefix, MACOS_RUNTIME_DIR);
+        assert_eq!(relative_binary_for(&plan), Some("runtime/pf-cli"));
+        assert_eq!(relative_binary_for(&plan), Some(MACOS_RELATIVE_BINARY));
+        assert_eq!(
+            plan.required_runtime_files,
+            &[
+                "runtime/pf-cli",
+                "runtime/ggml/src/libggml.0.dylib",
+                "runtime/ggml/src/libggml-base.0.dylib",
+                "runtime/bin/libggml-cpu-x64.so",
+            ]
+        );
+        assert_eq!(plan.provenance, CONTRACT_PROVENANCE);
+        assert_eq!(require_published_artifact(&plan), Ok(()));
+        assert_eq!(
+            resolved_url(&plan).as_deref(),
+            Some(MACOS_X64_ARTIFACT_URL)
+        );
+        let root = temp_root("macos-x64-published");
+        assert_eq!(
+            effective_state(Some(&root), &plan).0,
+            OfficePrivacyState::NotInstalled
+        );
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    /// macOS Apple Silicon arm64 resolves to exactly its published asset.
+    #[test]
+    fn macos_arm64_resolves_to_the_exact_published_silicon_asset() {
+        let _guard = test_env_guard();
+        // SAFETY: serialised by the env lock.
+        unsafe {
+            std::env::remove_var(ENV_RUNTIME_URL_OVERRIDE);
+        }
+        let plan = macos_arm64_plan();
+        assert_eq!(plan.support, PlatformSupport::Published);
+        assert_eq!(plan.support.as_str(), "published");
+        assert_eq!(plan.artifact_format, ArchiveFormat::TarGz);
+        assert_eq!(plan.artifact_name, MACOS_ARM64_ARTIFACT_NAME);
+        assert_eq!(
+            plan.artifact_name,
+            "safeai-office-privacy-runtime-macos-arm64-v1.0.0.tar.gz"
+        );
+        assert_eq!(plan.artifact_sha256, Some(MACOS_ARM64_ARTIFACT_SHA256));
+        assert_eq!(
+            plan.artifact_sha256,
+            Some("214cd46d7b2dc9d439bc0a1a1974b347cb3abbea983ba98dc83a255aa733b8e1")
+        );
+        assert_eq!(
+            plan.artifact_url,
+            Some("https://github.com/fabiofurlano/safeai-office-runtime/releases/download/office-privacy-v1.0.0/safeai-office-privacy-runtime-macos-arm64-v1.0.0.tar.gz")
+        );
+        assert_eq!(plan.artifact_url, Some(MACOS_ARM64_ARTIFACT_URL));
+        assert_eq!(plan.archive_prefix, "runtime/");
+        assert_eq!(plan.archive_prefix, MACOS_RUNTIME_DIR);
+        assert_eq!(relative_binary_for(&plan), Some("runtime/pf-cli"));
+        assert_eq!(relative_binary_for(&plan), Some(MACOS_RELATIVE_BINARY));
+        assert_eq!(
+            plan.required_runtime_files,
+            &[
+                "runtime/pf-cli",
+                "runtime/ggml/src/libggml.0.dylib",
+                "runtime/ggml/src/libggml-base.0.dylib",
+                "runtime/bin/libggml-cpu-x64.so",
+            ]
+        );
+        assert_eq!(plan.provenance, CONTRACT_PROVENANCE);
+        assert_eq!(require_published_artifact(&plan), Ok(()));
+        assert_eq!(
+            resolved_url(&plan).as_deref(),
+            Some(MACOS_ARM64_ARTIFACT_URL)
+        );
+        let root = temp_root("macos-arm64-published");
+        assert_eq!(
+            effective_state(Some(&root), &plan).0,
+            OfficePrivacyState::NotInstalled
+        );
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    /// The two macOS architectures must never share an asset or digest.
+    #[test]
+    fn macos_architectures_cannot_swap_assets() {
+        let x64 = macos_x64_plan();
+        let arm64 = macos_arm64_plan();
+        assert_ne!(x64.artifact_name, arm64.artifact_name);
+        assert_ne!(x64.artifact_url, arm64.artifact_url);
+        assert_ne!(x64.artifact_sha256, arm64.artifact_sha256);
+        // Same four-file contract on both architectures: the arm64 backend
+        // intentionally keeps the `libggml-cpu-x64.so` filename.
+        assert_eq!(x64.required_runtime_files, arm64.required_runtime_files);
+        assert_eq!(x64.archive_prefix, arm64.archive_prefix);
+        // A swapped digest is a different archive and must not verify: the
+        // pinned digests differ, so cross-checking fails by construction.
+        assert!(!digests_match(
+            x64.artifact_sha256.expect("x64 must be digest-pinned"),
+            arm64.artifact_sha256.expect("arm64 must be digest-pinned"),
+        ));
+    }
+
+    /// Both macOS archives extract bare entries under `runtime/` with no
+    /// doubled `runtime/runtime` segment.
+    #[test]
+    fn macos_archive_entries_land_exactly_on_the_required_runtime_paths() {
+        for plan in [macos_x64_plan(), macos_arm64_plan()] {
+            let base = temp_root("macos-archive-prefix");
+            let extract_root = archive_extract_root(&base, &plan);
+            assert_eq!(plan.archive_prefix, "runtime/");
+            assert_eq!(extract_root, base.join("runtime"));
+            for rel in plan.required_runtime_files {
+                let entry = rel.strip_prefix(plan.archive_prefix).unwrap_or_else(|| {
+                    panic!("{rel} must sit under {}", plan.archive_prefix)
+                });
+                // Bare entries: `pf-cli`, `ggml/src/...`, `bin/...` — the
+                // archive must not re-root itself.
+                assert!(
+                    !entry.starts_with("runtime/"),
+                    "{entry} must not re-root itself"
+                );
+                assert!(!entry.contains(".."), "{entry} must stay inside the component");
+                let landed = extract_root.join(entry);
+                assert_eq!(landed, base.join(rel), "{entry} must land on its required path");
+                assert!(
+                    !landed.to_string_lossy().contains("runtime/runtime"),
+                    "{entry} nests the runtime directory twice: {}",
+                    landed.display()
+                );
+            }
+            // `pf-cli` lands exactly at `runtime/pf-cli` on both architectures.
+            let binary = MACOS_RELATIVE_BINARY
+                .strip_prefix(plan.archive_prefix)
+                .expect("the binary sits under the archive prefix");
+            assert_eq!(binary, "pf-cli");
+            assert_eq!(
+                extract_root.join(binary),
+                base.join("runtime/pf-cli")
+            );
+            let _ = std::fs::remove_dir_all(&base);
+        }
+    }
+
     #[test]
     fn accessors_are_stable_strings() {
         assert_eq!(OfficeOs::Windows.as_str(), "windows");
@@ -2356,7 +2613,10 @@ mod tests {
 
     #[test]
     fn unsupported_plans_cannot_build_a_manifest() {
-        let plan = plan_for(OfficeTarget::new(OfficeOs::Macos, OfficeArch::Aarch64));
+        // `relative_binary_for` is OS-laned, so the no-binary case is the
+        // `Other` lane: an unproven arch of a known OS still resolves a
+        // binary path but refuses earlier at install time.
+        let plan = plan_for(OfficeTarget::new(OfficeOs::Other, OfficeArch::Other));
         let err = OfficePrivacyManifest::build(&plan, "x", "t".into())
             .expect_err("an unsupported target has no binary to record");
         assert_eq!(err, InstallError::UnsupportedPlatform);
