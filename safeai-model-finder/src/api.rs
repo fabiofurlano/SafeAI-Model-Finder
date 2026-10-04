@@ -3327,12 +3327,17 @@ mod tests {
 
     #[tokio::test]
     async fn office_privacy_status_is_independent_of_ollama() {
-        let _guard = ENV_LOCK.lock().unwrap();
+        // Isolate the Office privacy root so this assertion never depends on
+        // whether the host machine happens to have a real install. The fixture
+        // takes both env guards, so it also serialises against the
+        // `office_privacy` module tests that mutate the same environment.
+        let (_env_guard, _office_guard, root) =
+            office_privacy_fixture("status-independent-of-ollama");
         // Point Ollama at a port nothing is listening on. The privacy surface
         // must be completely unaffected: the Office Privacy Filter is not an
         // Ollama model, so its status can never depend on the Ollama daemon
         // (the normal Model Finder Ollama prerequisite does not apply here).
-        // SAFETY: serialised by ENV_LOCK.
+        // SAFETY: both env guards are held by the fixture.
         unsafe {
             std::env::set_var("OLLAMA_HOST", "http://127.0.0.1:1");
         }
@@ -3361,10 +3366,11 @@ mod tests {
             "sanity check: the Ollama probe itself still answers, just reports unavailable"
         );
 
-        // SAFETY: serialised by ENV_LOCK.
+        // SAFETY: both env guards are still held by the fixture.
         unsafe {
             std::env::remove_var("OLLAMA_HOST");
         }
+        clear_office_privacy_fixture(&root);
     }
 
     #[tokio::test]
@@ -3586,7 +3592,12 @@ mod tests {
 
     #[tokio::test]
     async fn ordinary_ollama_download_path_is_unchanged_by_the_privacy_lane() {
-        let _guard = ENV_LOCK.lock().unwrap();
+        // Isolate the Office privacy root so the "not installed" assertion is
+        // about this test's own lane, not about whether the host machine has a
+        // real install. The fixture takes both env guards, so it serialises
+        // against the `office_privacy` module tests that mutate the same
+        // environment.
+        let (_env_guard, _office_guard, root) = office_privacy_fixture("ordinary-ollama-download");
         let (addr, mock) = spawn_mock(&["qwen2.5:1.5b"], 200);
         bench_env(addr);
         let router = build_router(test_state());
@@ -3622,6 +3633,7 @@ mod tests {
             pulls,
             "the privacy lane must not trigger any Ollama pull"
         );
+        clear_office_privacy_fixture(&root);
     }
 
     fn bench_env(addr: SocketAddr) -> std::path::PathBuf {
