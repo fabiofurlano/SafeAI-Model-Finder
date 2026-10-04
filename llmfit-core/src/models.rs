@@ -138,6 +138,9 @@ pub fn parse_generation(architecture: Option<&str>, name: &str) -> Option<f64> {
             if suffix.starts_with("3_5") || suffix.starts_with("3.5") {
                 return Some(3.5);
             }
+            if suffix.starts_with("3_8") || suffix.starts_with("3.8") {
+                return Some(3.8);
+            }
             if suffix.starts_with("3_next") || suffix.starts_with("3next") {
                 return Some(3.8);
             }
@@ -224,6 +227,9 @@ pub fn parse_generation(architecture: Option<&str>, name: &str) -> Option<f64> {
     }
     if name_lower.contains("qwen3.5") || name_lower.contains("qwen3_5") {
         return Some(3.5);
+    }
+    if name_lower.contains("qwen3.8") || name_lower.contains("qwen3_8") {
+        return Some(3.8);
     }
     if name_lower.contains("qwen3") {
         return Some(3.0);
@@ -1572,10 +1578,10 @@ pub fn infer_attention_layout_from_name(name: &str) -> Option<AttentionLayout> {
         });
     }
 
-    // Qwen3.5 / Qwen3.6 hybrid models use 1 full attention per 4 layers.
-    // The dense 27B variants have 64 layers → 16 full + 48 linear.
+    // Qwen3.5 / Qwen3.6 / Qwen3.8 hybrid models use 1 full attention per 4
+    // layers. The dense 27B variants have 64 layers → 16 full + 48 linear.
     // The MoE A3B variants have 40 layers → 10 full + 30 linear.
-    if lower.contains("qwen3.5-") || lower.contains("qwen3.6-") {
+    if lower.contains("qwen3.5-") || lower.contains("qwen3.6-") || lower.contains("qwen3.8-") {
         if lower.contains("-a3b") || lower.contains("-a10b") || lower.contains("-a17b") {
             return Some(AttentionLayout {
                 full: 10,

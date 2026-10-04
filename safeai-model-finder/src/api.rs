@@ -3966,4 +3966,110 @@ mod tests {
         assert_eq!(f.len(), 1);
         assert!(f[0].model.name.contains("Llama"));
     }
+
+    // ── DF-PRODUCT-MF-003 pilot: verified local model tags ─────
+
+    /// Restores an environment variable to its prior value on drop, so a
+    /// panicking test cannot leak process-global state into a later one.
+    struct EnvVarRestore {
+        key: &'static str,
+        previous: Option<String>,
+    }
+
+    impl EnvVarRestore {
+        fn capture(key: &'static str) -> Self {
+            Self {
+                key,
+                previous: std::env::var(key).ok(),
+            }
+        }
+    }
+
+    impl Drop for EnvVarRestore {
+        fn drop(&mut self) {
+            // SAFETY: every caller holds ENV_LOCK while this guard lives.
+            unsafe {
+                match &self.previous {
+                    Some(value) => std::env::set_var(self.key, value),
+                    None => std::env::remove_var(self.key),
+                }
+            }
+        }
+    }
+
+    /// The verified local tags are offered to the authenticated download path
+    /// and cloud-only variants are rejected.
+    #[test]
+    fn pilot_verified_local_tags_are_offered_and_cloud_tags_rejected() {
+        let state = test_state();
+        let cases = [
+            ("Qwen/Qwen3.8-27B", "qwen3.8:27b"),
+            ("google/gemma-4-E2B-it", "gemma4:e2b"),
+            ("google/gemma-4-E4B-it", "gemma4:e4b"),
+            ("google/gemma-4-12B-it", "gemma4:12b"),
+            ("google/gemma-4-26B-A4B-it", "gemma4:26b"),
+            ("google/gemma-4-31B-it", "gemma4:31b"),
+        ];
+        for (model, tag) in cases {
+            assert!(
+                pull_request_allowed(
+                    &state,
+                    &PullRequest {
+                        model: model.to_string(),
+                        ollama_tag: tag.to_string(),
+                    },
+                ),
+                "{model} should be offered at the exact local tag {tag}"
+            );
+            assert!(
+                !pull_request_allowed(
+                    &state,
+                    &PullRequest {
+                        model: model.to_string(),
+                        ollama_tag: format!("{tag}-cloud"),
+                    },
+                ),
+                "{model} must reject the cloud-only tag {tag}-cloud"
+            );
+        }
+    }
+
+    /// The catalogue browse path surfaces the new models with their exact
+    /// local Ollama tags when enough memory is simulated for them to fit.
+    #[tokio::test]
+    async fn pilot_catalogue_browse_offers_verified_local_models() {
+        let _guard = ENV_LOCK.lock().unwrap();
+        // Point Ollama at a port nothing is listening on so the installed
+        // probe is a fast, deterministic miss. The guard restores whatever
+        // value was present before this test even if an assertion fails.
+        let _env = EnvVarRestore::capture("OLLAMA_HOST");
+        // SAFETY: serialised by ENV_LOCK.
+        unsafe {
+            std::env::set_var("OLLAMA_HOST", "http://127.0.0.1:1");
+        }
+        let router = build_router(test_state());
+        let cases = [
+            ("Qwen3.8", "qwen3.8:27b"),
+            ("gemma-4-12B", "gemma4:12b"),
+            ("gemma-4-26B", "gemma4:26b"),
+            ("gemma-4-31B", "gemma4:31b"),
+        ];
+        for (q, tag) in cases {
+            let (status, body) = respond(
+                router.clone(),
+                get_request(&format!(
+                    "/api/models/search?q={q}&ram=512&memory=256&limit=50"
+                )),
+            )
+            .await;
+            assert_eq!(status, StatusCode::OK, "{q}: {body}");
+            let results = body["results"].as_array().unwrap();
+            assert!(
+                results
+                    .iter()
+                    .any(|r| r["ollama_tag"].as_str() == Some(tag)),
+                "{q} should offer {tag}: {body}"
+            );
+        }
+    }
 }

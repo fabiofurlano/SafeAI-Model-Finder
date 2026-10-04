@@ -209150,6 +209150,51 @@
     "license": "gemma"
   },
   {
+    "name": "google/gemma-4-12B-it",
+    "provider": "Google",
+    "parameter_count": "12.0B",
+    "parameters_raw": 11959730224,
+    "min_ram_gb": 6.7,
+    "recommended_ram_gb": 11.1,
+    "min_vram_gb": 6.1,
+    "quantization": "Q4_K_M",
+    "format": "gguf",
+    "context_length": 262144,
+    "use_case": "Multimodal, vision and text",
+    "capabilities": [
+      "vision",
+      "tool_use"
+    ],
+    "pipeline_tag": "image-text-to-text",
+    "architecture": "gemma4",
+    "hf_downloads": 5938034,
+    "hf_likes": 1500,
+    "release_date": "2026-03-11",
+    "num_hidden_layers": 48,
+    "num_attention_heads": 16,
+    "num_key_value_heads": 8,
+    "head_dim": 256,
+    "hidden_size": 3840,
+    "vocab_size": 262144,
+    "moe_intermediate_size": 15360,
+    "shared_expert_intermediate_size": null,
+    "license": "apache-2.0",
+    "gguf_sources": [
+      {
+        "repo": "unsloth/gemma-4-12b-it-GGUF",
+        "provider": "unsloth"
+      },
+      {
+        "repo": "ggml-org/gemma-4-12b-it-GGUF",
+        "provider": "ggml-org"
+      },
+      {
+        "repo": "mradermacher/gemma-4-12b-it-GGUF",
+        "provider": "mradermacher"
+      }
+    ]
+  },
+  {
     "name": "unsloth/gemma-4-12b-it",
     "provider": "unsloth",
     "parameter_count": "12.0B",
@@ -245846,6 +245891,51 @@
     "shared_expert_intermediate_size": null,
     "_discovered": true,
     "license": "apache-2.0"
+  },
+  {
+    "name": "Qwen/Qwen3.8-27B",
+    "provider": "Alibaba",
+    "parameter_count": "27.8B",
+    "parameters_raw": 27781427952,
+    "min_ram_gb": 15.5,
+    "recommended_ram_gb": 25.9,
+    "min_vram_gb": 14.2,
+    "quantization": "Q4_K_M",
+    "format": "gguf",
+    "context_length": 262144,
+    "use_case": "Multimodal, vision and text",
+    "capabilities": [
+      "vision",
+      "tool_use"
+    ],
+    "pipeline_tag": "image-text-to-text",
+    "architecture": "qwen3_8",
+    "hf_downloads": 1666483,
+    "hf_likes": 812,
+    "release_date": "2026-09-15",
+    "num_hidden_layers": 64,
+    "num_attention_heads": 24,
+    "num_key_value_heads": 4,
+    "head_dim": 256,
+    "hidden_size": 5120,
+    "vocab_size": 248320,
+    "moe_intermediate_size": 17408,
+    "shared_expert_intermediate_size": null,
+    "license": "apache-2.0",
+    "gguf_sources": [
+      {
+        "repo": "unsloth/Qwen3.8-27B-GGUF",
+        "provider": "unsloth"
+      },
+      {
+        "repo": "ggml-org/Qwen3.8-27B-GGUF",
+        "provider": "ggml-org"
+      },
+      {
+        "repo": "mradermacher/Qwen3.8-27B-GGUF",
+        "provider": "mradermacher"
+      }
+    ]
   },
   {
     "name": "Qwen/Qwen3.5-27B",

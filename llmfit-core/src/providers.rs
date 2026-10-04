@@ -3687,6 +3687,12 @@ const OLLAMA_MAPPINGS: &[(&str, &str)] = &[
     ("gemma-2-27b-it", "gemma2:27b"),
     ("gemma-2-9b-it", "gemma2:9b"),
     ("gemma-2-2b-it", "gemma2:2b"),
+    // Google Gemma 4 (verified local Ollama tags; cloud variants are excluded)
+    ("gemma-4-e2b-it", "gemma4:e2b"),
+    ("gemma-4-e4b-it", "gemma4:e4b"),
+    ("gemma-4-12b-it", "gemma4:12b"),
+    ("gemma-4-26b-a4b-it", "gemma4:26b"),
+    ("gemma-4-31b-it", "gemma4:31b"),
     // Microsoft Phi
     ("phi-4", "phi4"),
     ("phi-4-mini-instruct", "phi4-mini"),
@@ -3727,6 +3733,8 @@ const OLLAMA_MAPPINGS: &[(&str, &str)] = &[
     ("qwen2.5-vl-7b-instruct", "qwen2.5vl:7b"),
     ("qwen2.5-vl-3b-instruct", "qwen2.5vl:3b"),
     ("qwq-32b", "qwq"),
+    // Qwen 3.8
+    ("qwen3.8-27b", "qwen3.8:27b"),
     // Qwen 3
     ("qwen3-235b-a22b", "qwen3:235b"),
     ("qwen3-32b", "qwen3:32b"),
